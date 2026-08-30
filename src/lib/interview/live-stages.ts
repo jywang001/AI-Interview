@@ -8,6 +8,7 @@ import {
 } from "@/lib/interview/live-schemas";
 import { selectHot100Problem } from "@/lib/interview/hot100";
 import { primaryResumeQuestion } from "@/lib/interview/resume-focus";
+import { roleKnowledgeQuestion } from "@/lib/interview/role-knowledge";
 import type {
   CandidateBrief,
   RoleProfile,
@@ -204,7 +205,7 @@ export function buildLiveStages(
       id: "role_knowledge",
       order: 3,
       title: "岗位八股与理解",
-      purpose: "检验岗位核心知识是否准确，并能否落到真实场景。",
+      purpose: "用若干具体、独立的小问题检验岗位基础知识；答错记为缺口后及时换题。",
       slots: roleSlots,
       maxFollowUps: realistic ? 4 : 2,
       timeBudgetSeconds: realistic ? 720 : 300,
@@ -275,10 +276,7 @@ export function openingQuestionForStage(
   const questions: Record<LiveStageId, string> = {
     self_intro: `欢迎参加本次 ${roleLabel} 模拟面试。请先用 90 秒做一个自我介绍，重点讲与目标岗位最相关的经历。`,
     resume_deep_dive: primaryResumeQuestion(brief),
-    role_knowledge:
-      session.roleId === "ai_algorithm"
-        ? "如果要证明一个新模型方案确实优于更简单的 baseline，你会怎样设计数据划分、指标和对照实验？"
-        : "请完整解释一个 LLM 应用请求从进入服务到返回答案的链路，并说明你会在哪里做评估、监控和降级。",
+    role_knowledge: roleKnowledgeQuestion(brief, 0),
     algorithm_reasoning: `算法题是「${session.algorithmProblem.title}」（${session.algorithmProblem.sourceLabel}）：${session.algorithmProblem.prompt} 你可以先独立思考，准备好后向我讲解思路和具体实现。`,
     motivation_availability: `为什么选择“${brief.job.title}”这个岗位？请结合你的经历说明匹配点。`,
     candidate_questions:

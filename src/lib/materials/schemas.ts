@@ -34,7 +34,7 @@ export const MaterialModelOutputSchema = z
           .strict(),
       )
       .min(1)
-      .max(4),
+      .max(6),
     skills: z.array(z.string().min(1).max(80)).min(1).max(24),
     job: z
       .object({
