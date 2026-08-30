@@ -94,6 +94,23 @@ function fallbackSeeds(
   });
 }
 
+function firstSubstantiveExcerpt(source: string, preferredPattern: RegExp) {
+  const candidates = source
+    .split(/\n+/u)
+    .map((line) => line.trim())
+    .filter((line) => canonicalCharacter(line).length >= 8)
+    .map((line, index) => ({
+      line: line.slice(0, 400),
+      score:
+        Math.min(120, canonicalCharacter(line).length) +
+        (preferredPattern.test(line) ? 200 : 0) -
+        index * 0.01,
+    }))
+    .sort((left, right) => right.score - left.score);
+
+  return candidates[0]?.line ?? null;
+}
+
 export function groundMaterialOutput(
   output: MaterialModelOutput,
   resumeText: string,
@@ -102,8 +119,10 @@ export function groundMaterialOutput(
   let droppedEvidenceCount = 0;
   let droppedClaimCount = 0;
   let droppedProjectCount = 0;
+  let recoveredProjectCount = 0;
+  let usedDocumentFallback = false;
 
-  const projects = output.projects.flatMap((project) => {
+  let projects = output.projects.flatMap((project) => {
     let evidence = deduplicateSeeds(
       project.evidence.flatMap((seed) => {
         const grounded = groundedSeed(seed, "resume", resumeText);
@@ -111,31 +130,82 @@ export function groundMaterialOutput(
         return grounded ? [grounded] : [];
       }),
     );
-    let confirmedClaims = project.confirmedClaims.flatMap((claim) => {
+    const groundedClaims = project.confirmedClaims.flatMap((claim) => {
       const grounded = alignExcerptToSource(resumeText, claim);
       if (!grounded) droppedClaimCount += 1;
       return grounded ? [grounded] : [];
     });
 
-    if (evidence.length === 0 && confirmedClaims.length > 0) {
-      evidence = confirmedClaims.slice(0, 3).map((excerpt) => ({
+    if (evidence.length === 0 && groundedClaims.length > 0) {
+      evidence = groundedClaims.slice(0, 3).map((excerpt) => ({
         sourceType: "resume" as const,
         excerpt,
         location: `项目经历 / ${project.name}`.slice(0, 200),
       }));
     }
-    if (confirmedClaims.length === 0 && evidence.length > 0) {
-      confirmedClaims = evidence
-        .map((seed) => seed.excerpt.slice(0, 400).trim())
-        .filter(Boolean)
-        .slice(0, 3);
+
+    // A model may understand a project correctly but paraphrase every quote.
+    // Recover from other model fields only when they themselves occur in the
+    // extracted resume; the returned evidence is still always source text.
+    if (evidence.length === 0) {
+      evidence = deduplicateSeeds(
+        fallbackSeeds(
+          [
+            project.name,
+            project.context,
+            ...project.responsibilities,
+            ...project.technologies,
+          ],
+          "resume",
+          resumeText,
+          `简历经历 / ${project.name}`.slice(0, 200),
+        ),
+      ).slice(0, 3);
+      if (evidence.length > 0) recoveredProjectCount += 1;
     }
-    if (evidence.length === 0 || confirmedClaims.length === 0) {
+
+    const confirmedClaims = Array.from(
+      new Set([
+        ...groundedClaims,
+        ...evidence.map((seed) => seed.excerpt.slice(0, 400).trim()),
+      ]),
+    )
+      .filter(Boolean)
+      .slice(0, 6);
+
+    if (evidence.length === 0) {
       droppedProjectCount += 1;
       return [];
     }
     return [{ ...project, evidence, confirmedClaims }];
   });
+
+  if (projects.length === 0) {
+    const excerpt = firstSubstantiveExcerpt(
+      resumeText,
+      /项目|实习|科研|研究|负责|开发|模型|系统|算法|API|RAG/iu,
+    );
+    const basis = output.projects[0];
+    if (excerpt && basis) {
+      const evidence = [
+        {
+          sourceType: "resume" as const,
+          excerpt,
+          location: "简历原文（自动恢复）",
+        },
+      ];
+      projects = [
+        {
+          ...basis,
+          name: alignExcerptToSource(resumeText, basis.name) ?? "简历相关经历",
+          context: "PDF 原文已提取，具体经历名称待面试者确认",
+          confirmedClaims: [excerpt],
+          evidence,
+        },
+      ];
+      usedDocumentFallback = true;
+    }
+  }
 
   let jobEvidence = deduplicateSeeds(
     output.job.evidence.flatMap((seed) => {
@@ -159,6 +229,23 @@ export function groundMaterialOutput(
     ).slice(0, 8);
   }
 
+  if (jobEvidence.length === 0) {
+    const excerpt = firstSubstantiveExcerpt(
+      jdText,
+      /岗位|职责|要求|能力|开发|算法|工程|模型|数据|系统/iu,
+    );
+    if (excerpt) {
+      jobEvidence = [
+        {
+          sourceType: "jd" as const,
+          excerpt,
+          location: "岗位描述（自动恢复）",
+        },
+      ];
+      usedDocumentFallback = true;
+    }
+  }
+
   if (projects.length === 0 || jobEvidence.length === 0) return null;
 
   const repairNotice = [
@@ -170,6 +257,12 @@ export function groundMaterialOutput(
       : "",
     droppedProjectCount > 0
       ? `${droppedProjectCount} 个缺少原文证据的项目草稿未纳入面试。`
+      : "",
+    recoveredProjectCount > 0
+      ? `${recoveredProjectCount} 个项目使用了可定位的名称或技术字段恢复原文证据。`
+      : "",
+    usedDocumentFallback
+      ? "部分结构化引用未能定位，已保留真实文档片段并标记为待确认。"
       : "",
   ]
     .filter(Boolean)

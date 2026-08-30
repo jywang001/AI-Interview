@@ -142,7 +142,9 @@ export function MaterialForm() {
       if (!parsedResponse.data.ok) {
         setSubmitState({
           kind: "error",
-          message: parsedResponse.data.message,
+          message: `${parsedResponse.data.message}（${
+            parsedResponse.data.code
+          } · 请求 ${parsedResponse.data.requestId}）`,
         });
         return;
       }

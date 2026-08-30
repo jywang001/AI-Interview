@@ -21,7 +21,7 @@ import { reserveMaterialAnalysisRequest } from "@/lib/materials/request-guard.se
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 90;
+export const maxDuration = 150;
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store",
@@ -143,6 +143,8 @@ function validateTextFields(formData: FormData):
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
+  const startedAt = Date.now();
+  let stage = "request_validation";
   const contentType = request.headers.get("content-type")?.toLowerCase();
 
   if (!contentType || !/^multipart\/form-data(?:;|$)/u.test(contentType)) {
@@ -193,13 +195,16 @@ export async function POST(request: Request) {
       return errorResponse("INVALID_INPUT", requestId);
     }
 
+    stage = "pdf_extraction";
     const resumeText = await extractPdfText(resumeBytes);
+    stage = "model_analysis";
     const analysis = await analyzeMaterials({
       roleId: textFields.roleId,
       resumeText,
       jdText: textFields.jdText,
     });
     const createdAt = new Date().toISOString();
+    stage = "response_validation";
     const body = MaterialParseSuccessSchema.parse({
       ok: true,
       draft: analysis.draft,
@@ -219,6 +224,16 @@ export async function POST(request: Request) {
       headers: NO_STORE_HEADERS,
     });
   } catch (error) {
+    const code =
+      error instanceof PdfTextError || error instanceof MaterialAnalysisError
+        ? error.code
+        : "MODEL_UNAVAILABLE";
+    console.error("Material parse request failed", {
+      requestId,
+      stage,
+      code,
+      elapsedMs: Date.now() - startedAt,
+    });
     if (error instanceof PdfTextError) {
       return errorResponse(error.code, requestId);
     }
