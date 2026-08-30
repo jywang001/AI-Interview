@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { PresenterCard } from "@/components/presenter-card";
 import {
@@ -15,13 +16,20 @@ import {
   type LiveInterviewSession as LiveSession,
 } from "@/lib/interview/live-schemas";
 import {
+  buildRoleProfile,
   createLiveInterviewSession,
   INTERVIEW_MODE_COPY,
 } from "@/lib/interview/live-stages";
-import type { InterviewSession } from "@/lib/interview/schemas";
+import {
+  CandidateBriefSchema,
+  type CandidateBrief,
+  type InterviewSession,
+  type RoleProfile,
+} from "@/lib/interview/schemas";
 
 const SESSION_STORAGE_KEY = "ai-interview:live-session:v1";
 const REPORT_STORAGE_KEY = "ai-interview:live-report:v1";
+const CANDIDATE_BRIEF_STORAGE_KEY = "ai-interview:candidate-brief:v1";
 const INTERVIEW_RESPONSE_TIMEOUT_MS = 45_000;
 const REPORT_TIMEOUT_MS = 60_000;
 
@@ -142,6 +150,13 @@ function CoachReport({ report }: { report: LiveCoachReport }) {
 export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps) {
   const [session, setSession] = useState<LiveSession | null>(null);
   const [report, setReport] = useState<LiveCoachReport | null>(null);
+  const [contextError, setContextError] = useState("");
+  const [candidateBrief, setCandidateBrief] = useState<CandidateBrief>(
+    demoSession.candidateBrief,
+  );
+  const [roleProfile, setRoleProfile] = useState<RoleProfile>(
+    demoSession.roleProfile,
+  );
   const [hasRestored, setHasRestored] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -152,11 +167,34 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
 
   useEffect(() => {
     try {
+      const sourceIsLive = new URLSearchParams(window.location.search).get("source") === "live";
+      if (sourceIsLive) {
+        window.localStorage.removeItem(SESSION_STORAGE_KEY);
+        window.localStorage.removeItem(REPORT_STORAGE_KEY);
+        const storedBrief = window.sessionStorage.getItem(
+          CANDIDATE_BRIEF_STORAGE_KEY,
+        );
+        const parsedBrief = storedBrief
+          ? CandidateBriefSchema.safeParse(JSON.parse(storedBrief))
+          : null;
+        if (parsedBrief?.success) {
+          setCandidateBrief(parsedBrief.data);
+          setRoleProfile(buildRoleProfile(parsedBrief.data.roleId));
+        } else {
+          setContextError("没有读取到已确认的真实材料，请返回准备页重新确认。 ");
+        }
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+
       const savedSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
       const parsedSession = savedSession
         ? LiveInterviewSessionSchema.safeParse(JSON.parse(savedSession))
         : null;
-      if (parsedSession?.success) setSession(parsedSession.data);
+      if (parsedSession?.success) {
+        setSession(parsedSession.data);
+        setCandidateBrief(parsedSession.data.candidateBrief);
+        setRoleProfile(parsedSession.data.roleProfile);
+      }
 
       const savedReport = window.localStorage.getItem(REPORT_STORAGE_KEY);
       const parsedReport = savedReport
@@ -181,8 +219,8 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
     const nextSession = createLiveInterviewSession({
       id: createClientId("session"),
       mode,
-      roleProfile: demoSession.roleProfile,
-      candidateBrief: demoSession.candidateBrief,
+      roleProfile,
+      candidateBrief,
     });
     window.localStorage.removeItem(REPORT_STORAGE_KEY);
     persistSession(nextSession);
@@ -340,6 +378,19 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
     return <p className="success-note">正在恢复本机面试记录…</p>;
   }
 
+  if (contextError) {
+    return (
+      <section className="mode-select" role="alert">
+        <p className="eyebrow">MATERIAL CONTEXT REQUIRED</p>
+        <h1>无法开始真实材料面试</h1>
+        <p>{contextError}</p>
+        <Link className="button button-primary" href="/prepare">
+          返回准备材料 <span>→</span>
+        </Link>
+      </section>
+    );
+  }
+
   if (!session) {
     return (
       <section className="mode-select" aria-labelledby="mode-select-title">
@@ -347,6 +398,9 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
         <h1 id="mode-select-title">选择本场面试强度</h1>
         <p>
           两种模式都完整走完六个阶段；区别只在追问深度与时长。全程连续进行，结束后统一复盘。
+        </p>
+        <p className="mode-context">
+          本场材料：{candidateBrief.displayName} · {candidateBrief.job.title}
         </p>
         <div className="mode-grid">
           {(["quick", "realistic"] as const).map((mode) => {

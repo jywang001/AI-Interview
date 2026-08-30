@@ -440,7 +440,7 @@ export function LiveMaterialReview() {
           </dl>
 
           <p className="live-confirm-notice">
-            确认只会在当前浏览器保存 CandidateBrief，并把所有展示过的简历/JD 证据标为已确认。动态面试尚未接入，因此这里不会跳转到预置 Demo 面试。
+            确认只会在当前浏览器保存 CandidateBrief，并把所有展示过的简历/JD 证据标为已确认。进入面试后，Interviewer 和 Coach 只读取这份确认版材料与确认版回答。
           </p>
 
           {confirmation.kind === "error" && (
@@ -450,19 +450,28 @@ export function LiveMaterialReview() {
           )}
           {confirmation.kind === "success" && (
             <p aria-live="polite" className="live-confirm-message is-success" role="status">
-              已于 {formatDate(confirmation.confirmedAt)} 保存到本浏览器。动态面试仍待接入。
+              已于 {formatDate(confirmation.confirmedAt)} 保存到本浏览器，可以开始六阶段面试。
             </p>
           )}
 
-          <button
-            className="button button-light"
-            disabled={confirmation.kind === "success"}
-            onClick={confirmMaterials}
-            type="button"
-          >
-            {confirmation.kind === "success" ? "已确认材料" : "确认材料（暂不开始面试）"}
-            <span aria-hidden="true">→</span>
-          </button>
+          {confirmation.kind === "success" ? (
+            <Link
+              className="button button-light"
+              href="/interview/demo-ai-developer?source=live"
+            >
+              进入六阶段面试
+              <span aria-hidden="true">→</span>
+            </Link>
+          ) : (
+            <button
+              className="button button-light"
+              onClick={confirmMaterials}
+              type="button"
+            >
+              确认这份材料
+              <span aria-hidden="true">→</span>
+            </button>
+          )}
           <Link className="button button-ghost" href="/prepare">
             返回修改材料
           </Link>

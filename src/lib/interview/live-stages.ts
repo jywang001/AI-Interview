@@ -10,6 +10,7 @@ import type {
   CandidateBrief,
   RoleProfile,
 } from "@/lib/interview/schemas";
+import { RoleProfileSchema } from "@/lib/interview/schemas";
 
 export const INTERVIEW_MODE_COPY = {
   quick: {
@@ -23,6 +24,73 @@ export const INTERVIEW_MODE_COPY = {
     duration: "约 30–45 分钟",
   },
 } as const;
+
+export function buildRoleProfile(
+  roleId: "ai_algorithm" | "ai_application",
+): RoleProfile {
+  const sharedCompetencies = [
+    {
+      id: "question_response",
+      label: "回应问题",
+      description: "直接回答问题，并用结构化信息支持结论。",
+      weight: 15,
+    },
+    {
+      id: "ownership",
+      label: "项目所有权",
+      description: "区分个人决策、实施和团队贡献。",
+      weight: 20,
+    },
+    {
+      id: "technical_reasoning",
+      label: "技术推理",
+      description: "说明方案、替代路径、边界与取舍。",
+      weight: 25,
+    },
+    {
+      id: "result_evidence",
+      label: "结果证据",
+      description: "用可信评估、指标和限制支撑结果。",
+      weight: 20,
+    },
+    {
+      id: "job_relevance",
+      label: "岗位相关性",
+      description: "把经验映射到目标岗位职责。",
+      weight: 20,
+    },
+  ];
+
+  return RoleProfileSchema.parse(
+    roleId === "ai_algorithm"
+      ? {
+          id: roleId,
+          label: "AI 算法岗",
+          summary: "关注数据、建模、实验设计、指标、bad case 与泛化边界。",
+          competencyWeights: sharedCompetencies,
+          requiredSignals: [
+            "能够准确解释核心算法或模型概念",
+            "能够设计可靠的数据划分、baseline 与对照实验",
+            "能够解释指标选择并分析 bad case",
+            "能够识别模型的适用边界与泛化风险",
+          ],
+          scenarioConstraints: ["数据分布变化且标注预算有限"],
+        }
+      : {
+          id: roleId,
+          label: "AI 应用开发岗",
+          summary: "关注模型能力能否通过清晰架构、可验证评估与可靠降级形成可交付产品。",
+          competencyWeights: sharedCompetencies,
+          requiredSignals: [
+            "能够解释端到端请求链路",
+            "能够设计离线评估与线上监控",
+            "能够在延迟、成本和质量之间做可验证取舍",
+            "能够说明超时、模型不可用和流量突增时的降级方案",
+          ],
+          scenarioConstraints: ["流量扩大十倍，同时推理预算减少一半"],
+        },
+  );
+}
 
 const slot = (
   id: string,
