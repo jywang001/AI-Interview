@@ -120,33 +120,47 @@ function promptForAssessment(
   ].join("\n\n");
 }
 
-function validateModelAssessment(
+function normalizeModelAssessment(
   assessment: ModelAssessment,
   session: LiveInterviewSession,
   answer: string,
 ) {
   const stage = session.stages[session.currentStageIndex];
-  const expectedIds = new Set(stage.slots.map((slot) => slot.id));
-  const actualIds = assessment.slotUpdates.map((update) => update.slotId);
-  if (
-    actualIds.length !== expectedIds.size ||
-    new Set(actualIds).size !== actualIds.length ||
-    actualIds.some((id) => !expectedIds.has(id))
-  ) {
-    throw new LiveInterviewError("MODEL_OUTPUT_INVALID");
-  }
-  for (const update of assessment.slotUpdates) {
-    if (update.status === "missing") {
-      if (update.evidenceQuote !== null) {
-        throw new LiveInterviewError("MODEL_OUTPUT_INVALID");
-      }
-    } else if (!update.evidenceQuote || !answer.includes(update.evidenceQuote)) {
-      throw new LiveInterviewError("MODEL_OUTPUT_INVALID");
+  const validSlotIds = new Set(stage.slots.map((slot) => slot.id));
+  const updatesBySlot = new Map(
+    assessment.slotUpdates
+      .filter((update) => validSlotIds.has(update.slotId))
+      .map((update) => [update.slotId, update]),
+  );
+  const slotUpdates = stage.slots.map((slot) => {
+    const update = updatesBySlot.get(slot.id);
+    if (
+      !update ||
+      update.status === "missing" ||
+      !update.evidenceQuote ||
+      !answer.includes(update.evidenceQuote)
+    ) {
+      return {
+        slotId: slot.id,
+        status: "missing" as const,
+        evidenceQuote: null,
+        rationale: update?.rationale ?? "当前回答未提供可核验的逐字证据。",
+      };
     }
-  }
-  if (assessment.followUpAnchor && !answer.includes(assessment.followUpAnchor)) {
-    throw new LiveInterviewError("MODEL_OUTPUT_INVALID");
-  }
+    return update;
+  });
+
+  return ModelAssessmentSchema.parse({
+    ...assessment,
+    slotUpdates,
+    criticalMissingSlotIds: assessment.criticalMissingSlotIds.filter((slotId) =>
+      validSlotIds.has(slotId),
+    ),
+    followUpAnchor:
+      assessment.followUpAnchor && answer.includes(assessment.followUpAnchor)
+        ? assessment.followUpAnchor
+        : null,
+  });
 }
 
 function cumulativeStatuses(
@@ -259,7 +273,11 @@ export async function respondToLiveInterview(input: LiveRespondInput) {
     throw new LiveInterviewError("MODEL_UNAVAILABLE");
   }
 
-  validateModelAssessment(assessment, session, input.confirmedAnswerText);
+  assessment = normalizeModelAssessment(
+    assessment,
+    session,
+    input.confirmedAnswerText,
+  );
   const decision = decide(session, assessment);
   const timestamp = new Date().toISOString();
   const stage = session.stages[session.currentStageIndex];
