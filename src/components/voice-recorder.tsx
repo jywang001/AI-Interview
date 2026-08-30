@@ -298,6 +298,22 @@ export function VoiceRecorder({
     }
   }
 
+  useEffect(() => {
+    if (!question.trim()) return;
+
+    // Use the local system voice for automatic playback so the interviewer
+    // starts speaking immediately. The replay button keeps the higher-quality
+    // Volcengine voice available when latency is less important.
+    const timer = window.setTimeout(() => {
+      speakQuestionWithBrowser();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+    // A new keyed recorder is mounted for every interview turn; question is
+    // the only trigger we intentionally want for automatic playback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question]);
+
   async function submitAnswer() {
     const confirmedAnswerText = transcript.trim();
     if (confirmedAnswerText.length < 10 || isSubmitting) return;
