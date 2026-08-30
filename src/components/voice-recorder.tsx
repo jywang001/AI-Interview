@@ -22,6 +22,7 @@ type VoiceRecorderProps = {
   answerEnabled?: boolean;
   speakerOnly?: boolean;
   onQuestionPlaybackEnded?: () => void;
+  onQuestionPlaybackStateChange?: (isPlaying: boolean) => void;
 };
 
 export type ConfirmedAnswer = Readonly<{
@@ -107,6 +108,7 @@ export function VoiceRecorder({
   answerEnabled = true,
   speakerOnly = false,
   onQuestionPlaybackEnded,
+  onQuestionPlaybackStateChange,
 }: VoiceRecorderProps) {
   const [state, setState] = useState<RecorderState>("idle");
   const [error, setError] = useState("");
@@ -147,6 +149,7 @@ export function VoiceRecorder({
       streamRef.current?.getTracks().forEach((track) => track.stop());
       synthesisControllerRef.current?.abort();
       questionAudioRef.current?.pause();
+      onQuestionPlaybackStateChange?.(false);
       if (questionAudioUrlRef.current) {
         URL.revokeObjectURL(questionAudioUrlRef.current);
       }
@@ -303,8 +306,16 @@ export function VoiceRecorder({
     questionAudioRef.current = audio;
     questionAudioUrlRef.current = url;
     audio.addEventListener(
+      "playing",
+      () => onQuestionPlaybackStateChange?.(true),
+      { once: true },
+    );
+    audio.addEventListener("pause", () => onQuestionPlaybackStateChange?.(false));
+    audio.addEventListener("error", () => onQuestionPlaybackStateChange?.(false));
+    audio.addEventListener(
       "ended",
       () => {
+        onQuestionPlaybackStateChange?.(false);
         URL.revokeObjectURL(url);
         if (questionAudioUrlRef.current === url) {
           questionAudioUrlRef.current = "";
@@ -432,6 +443,7 @@ export function VoiceRecorder({
 
       await playStreamingRemoteAudio(response);
     } catch {
+      onQuestionPlaybackStateChange?.(false);
       if (!controller.signal.aborted || timedOut) {
         setError(
           timedOut

@@ -1,12 +1,24 @@
-import Image from "next/image";
-
-type PresenterState = "idle" | "listening" | "thinking" | "speaking";
+type PresenterState =
+  | "idle"
+  | "listening"
+  | "thinking"
+  | "speaking"
+  | "followup";
 
 const stateCopy: Record<PresenterState, string> = {
   idle: "等待开始",
   listening: "正在聆听",
   thinking: "正在整理追问",
   speaking: "面试官提问中",
+  followup: "正在深入追问",
+};
+
+const stateVideo: Record<PresenterState, string> = {
+  idle: "/interviewers/idle.mp4",
+  listening: "/interviewers/listening.mp4",
+  thinking: "/interviewers/thinking.mp4",
+  speaking: "/interviewers/speaking.mp4",
+  followup: "/interviewers/followup.mp4",
 };
 
 type PresenterCardProps = {
@@ -19,12 +31,17 @@ export function PresenterCard({ state, compact = false }: PresenterCardProps) {
     <section className={compact ? "presenter-card is-compact" : "presenter-card"}>
       <div className="presenter-visual">
         <div className="signal-ring" aria-hidden="true" />
-        <Image
-          alt="原创抽象面试官形象"
-          height={360}
-          priority
-          src="/presenter-placeholder.svg"
-          width={360}
+        <video
+          aria-label={`AI 面试官${stateCopy[state]}`}
+          autoPlay
+          className="presenter-media"
+          key={state}
+          loop
+          muted
+          playsInline
+          poster="/presenter-idle.png"
+          preload="auto"
+          src={stateVideo[state]}
         />
       </div>
       <div className="presenter-meta">

@@ -127,6 +127,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
   );
   const [hasRestored, setHasRestored] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [isPresenterSpeaking, setIsPresenterSpeaking] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [requestError, setRequestError] = useState("");
   const [publicReaction, setPublicReaction] = useState("");
@@ -217,6 +218,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
     persistSession(nextSession);
     setSession(nextSession);
     setReport(null);
+    setIsPresenterSpeaking(false);
     setPublicReaction("");
     setClosingMessage("");
     setHasClosingPlaybackFinished(false);
@@ -228,6 +230,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
     window.localStorage.removeItem(REPORT_STORAGE_KEY);
     setSession(null);
     setReport(null);
+    setIsPresenterSpeaking(false);
     setPublicReaction("");
     setClosingMessage("");
     setHasClosingPlaybackFinished(false);
@@ -524,7 +527,17 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
       {!report && (
         <div className="interview-layout">
           <PresenterCard
-            state={finished ? "idle" : isThinking ? "thinking" : "speaking"}
+            state={
+              finished
+                ? "idle"
+                : isThinking
+                  ? "thinking"
+                  : isPresenterSpeaking
+                    ? publicReaction
+                      ? "followup"
+                      : "speaking"
+                    : "listening"
+            }
           />
           <div className="interview-main">
             <section className="question-card">
@@ -598,6 +611,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
                     ? startAlgorithmThinkingAfterPrompt
                     : undefined
                 }
+                onQuestionPlaybackStateChange={setIsPresenterSpeaking}
                 question={session.currentQuestionText}
               />
             )}
