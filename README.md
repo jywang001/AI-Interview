@@ -2,33 +2,41 @@
 
 AI Interview 的目标是成为面向 AI 算法岗与 AI 应用开发岗候选人的模拟面试训练应用：用户提交简历和目标 JD，完成一场岗位化面试，再根据回答原文获得证据化复盘并立即重练薄弱问题。
 
-当前仓库处于 P0 工程骨架阶段，优先保证一条可在三分钟内演示、外部模型不可用时仍能运行的完整路径。
+当前仓库已进入 P0 可运行纵向切片阶段，优先保证一条可在三分钟内演示、外部模型不可用时仍能降级的完整路径。
 
 ## 当前骨架
 
 - 两个岗位入口：AI 算法岗、AI 应用开发岗。
 - 真实文本型 PDF + JD 的服务端提取、模型分析与事实确认路径。
-- 固定的快速面试契约：4 个考察目标、5 个问答轮次，其中包含 1 次项目追问。
+- 连续六阶段面试：自我介绍、简历项目拷打、岗位理解、算法思路、岗位意愿与到岗安排、候选人反问。
+- 快速体验与真实模拟两种模式；每轮先评估回答充分性，再自动追问或推进，不显示过程评分。
 - 五个核心页面骨架：准备材料、确认材料、模拟面试、证据复盘、定向重练。
 - 与实时数据使用相同 Schema 的离线 Demo fixtures。
-- 可替换的模型、语音转写和 Presenter 接口边界。
+- 火山豆包极速语音识别与 Seed-TTS 2.0 服务端适配器，失败时可继续编辑文字并用浏览器朗读。
+- 真实面试官单轮决策接口：只读取用户确认版回答，维护阶段证据覆盖并生成一次锚定原话的动态追问。
+- 真实 Coach 接口：整场结束后生成总分、六阶段星级、逐字证据、理由和优先整改项。
+- 可替换的模型、语音与 Presenter 接口边界。
 - 服务端密钥隔离、健康检查和 Docker standalone 构建。
 
 完整范围、验收条件与迭代边界见 [产品需求文档](docs/PRD.md)。
 
 ## 当前运行模式
 
-当前提交采用明确标注的混合模式，不把预置结果伪装成实时生成：真实 PDF 简历与 JD 会由 `/api/materials/parse` 调用已配置的 OpenAI-compatible 模型生成待确认草稿；面试提问、追问、报告、重练和语音转写仍使用 Demo fixtures / adapters。即使外部模型未配置或暂不可用，Offline Demo 面试路径仍可完整演示。
+当前提交采用明确标注的混合模式，不把预置结果伪装成实时生成：真实 PDF 简历与 JD 由 `/api/materials/parse` 调用已配置的 OpenAI-compatible 模型生成待确认草稿；演示材料上的六阶段面试与最终 Coach 报告均可调用真实模型，录音可调用火山豆包 STT，题目可调用 Seed-TTS。旧版报告与重练页面保留明确标注的 Demo fixtures 作为兜底。外部服务不可用时，用户仍可编辑文字、使用浏览器朗读，并保留本机 Transcript 后重试。
 
 | 路由 | 用途 |
 | --- | --- |
 | `/` | 产品说明与开始入口 |
 | `/prepare` | 选择岗位；可提交真实 PDF + JD，或进入虚构 Demo |
 | `/prepare/confirm` | 核对真实模型解析草稿，或查看 Demo 材料范围 |
-| `/interview/demo-ai-developer` | 展示五轮 fixture 中的一轮代表性交互骨架 |
+| `/interview/demo-ai-developer` | 选择快速或真实模式，连续完成六阶段自适应面试并生成实时复盘 |
 | `/report/demo-ai-developer` | 展示预置五轮记录的教练复盘与简历建议 |
 | `/drill/demo-ai-developer` | 单题重练与前后对比 |
 | `/api/materials/parse` | 以 `pdftotext` 提取真实简历并调用配置的模型分析材料 |
+| `/api/interview/live/respond` | 评估一轮确认版回答并自动追问、推进或结束 |
+| `/api/interview/live/report` | 根据完整六阶段 Transcript 生成证据化 Coach 报告 |
+| `/api/speech/transcribe` | 将最长 60 秒的浏览器录音转为确认前文字草稿 |
+| `/api/speech/synthesize` | 将当前问题合成为 MP3；不可用时前端改用浏览器朗读 |
 | `/api/demo/session` | 与实时路径同 Schema 的演示会话数据 |
 | `/api/health` | 分别报告材料分析、面试和语音能力状态 |
 
@@ -45,7 +53,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-打开 `http://localhost:3000` 即可使用 Offline Demo。要解析真实材料，还需在本地 `.env` 配置 `OPENAI_API_KEY` 与 `OPENAI_MODEL`；`OPENAI_BASE_URL` 可用于兼容端点。所有凭证只放在服务端变量中，不要写入任何 `NEXT_PUBLIC_*` 变量。
+打开 `http://localhost:3000` 即可使用 Demo。要解析真实材料并动态追问，需在本地 `.env` 配置 `OPENAI_API_KEY` 与 `OPENAI_MODEL`；`OPENAI_BASE_URL` 可用于兼容端点。要启用语音服务，再填写 `VOLC_SPEECH_API_KEY` 与 `VOLC_TTS_SPEAKER`。所有凭证只放在服务端变量中，不要写入任何 `NEXT_PUBLIC_*` 变量。
 
 ## 验证
 
@@ -91,7 +99,7 @@ curl -fsS http://127.0.0.1:3000/api/health
 
 ## P0 边界
 
-真实材料解析与模型分析已接通，但仅覆盖文本型 PDF，不做 OCR。面试规划、提问追问、报告、重练与 STT 仍为 Demo，不应宣称已实时生成。当前框架不实现实时数字人、多面试官、登录支付、长期历史、录取概率或任意代码执行。Presenter 只是原创静态表现层，不能影响面试状态；代码环节只预留数据接口，不在 Web 服务进程执行用户代码。
+真实材料解析、模型分析、确认后动态追问、轮次式 STT/TTS 已接通；PDF 仅覆盖文本型文件，不做 OCR，且尚未把真实材料确认结果自动生成成完整面试计划。报告与重练仍为 Demo，不应宣称已实时生成。当前框架不实现实时流式语音、数字人视频、多面试官、登录支付、长期历史、录取概率或任意代码执行。Presenter 只是原创静态表现层，不能影响面试状态；代码环节只预留数据接口，不在 Web 服务进程执行用户代码。
 
 ## 安全与来源
 

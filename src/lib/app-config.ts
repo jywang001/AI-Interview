@@ -5,7 +5,12 @@ export const appConfig = {
     process.env.NEXT_PUBLIC_APP_TAGLINE ??
     "把简历里的每一句话，练成经得起追问的回答。",
   promise:
-    "基于一份真实简历和目标 JD，完成 5 轮岗位化模拟面试，找到 3 个以内的关键证据缺口，并立即重练其中 1 项。",
+    "基于一份真实简历和目标 JD，连续完成六阶段岗位化模拟面试，找到 3 个以内的关键证据缺口，并立即重练其中 1 项。",
+  voiceFlow: {
+    mode: "turn_based",
+    promise: "每轮语音先转写并由用户确认，再进入动态追问与证据复盘。",
+    fallback: "任一语音服务失败时，问题文字和文字回答仍可完成整场面试。",
+  },
   demoSessionId: "demo-ai-developer",
   roles: [
     {

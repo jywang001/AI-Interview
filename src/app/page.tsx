@@ -11,7 +11,7 @@ const loop = [
   {
     index: "02",
     title: "接受追问",
-    copy: "4 个考察目标、5 个回答轮次，其中一次由你的答案触发。",
+    copy: "完整走过六个面试阶段，每一轮都根据回答充分性决定追问或推进。",
   },
   {
     index: "03",
@@ -62,7 +62,7 @@ export default function Home() {
               <span className="live-dot">DEMO READY</span>
             </div>
             <div className="question-preview">
-              <p>PROJECT DEEP DIVE · TURN 02 / 05</p>
+              <p>RESUME DEEP DIVE · STAGE 02 / 06</p>
               <blockquote>
                 你提到把检索链路的 P95 延迟降低了 38%。这个结果中，哪一部分是你负责的？
               </blockquote>

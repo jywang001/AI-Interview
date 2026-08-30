@@ -8,6 +8,7 @@ import {
   demoCandidateBrief,
   demoInterviewSession,
 } from "@/fixtures/demo-session";
+import { buildLiveStages } from "@/lib/interview/live-stages";
 
 export const metadata: Metadata = {
   title: "确认材料",
@@ -33,6 +34,7 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
 
   const requestedAlgorithm = role === "ai_algorithm";
   const project = demoCandidateBrief.projects[0];
+  const liveStages = buildLiveStages(demoInterviewSession.roleProfile.id, "quick");
 
   return (
     <AppShell active="prepare">
@@ -125,17 +127,17 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
                 <p>INTERVIEW PLAN</p>
                 <h2>本场考察范围</h2>
               </div>
-              <span className="status-pill">4 OBJ / 5 TURNS</span>
+              <span className="status-pill">6 STAGES / ADAPTIVE</span>
             </div>
 
             <ol className="objective-list">
-              {demoInterviewSession.objectives.map((objective) => (
-                <li key={objective.id}>
+              {liveStages.map((stage) => (
+                <li key={stage.id}>
                   <div>
-                    <strong>{objective.title}</strong>
-                    <small>{objective.evidenceGoal}</small>
+                    <strong>{stage.title}</strong>
+                    <small>{stage.purpose}</small>
                   </div>
-                  <span>{objective.maxFollowUps > 0 ? "2 轮" : "1 轮"}</span>
+                  <span>自适应</span>
                 </li>
               ))}
             </ol>
@@ -151,7 +153,7 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
               </div>
               <div>
                 <span>预计</span>
-                <strong>10–15 分钟</strong>
+                <strong>12–18 分钟</strong>
               </div>
             </div>
 
