@@ -22,7 +22,7 @@ type SubmitState =
   | { kind: "error"; message: string }
   | { kind: "success"; message: string };
 
-function buildConfirmedCandidateBrief(payload: MaterialParseSuccess) {
+function buildGroundedCandidateBrief(payload: MaterialParseSuccess) {
   const { draft } = payload;
   const confirmEvidence = <T extends { confirmed: boolean }>(reference: T) => ({
     ...reference,
@@ -151,7 +151,7 @@ export function MaterialForm() {
         throw new Error("解析服务暂时不可用，请稍后重试。");
       }
 
-      const candidateBrief = buildConfirmedCandidateBrief(parsedResponse.data);
+      const candidateBrief = buildGroundedCandidateBrief(parsedResponse.data);
       if (!candidateBrief.success) {
         throw new Error("简历信息未通过完整性校验，请重新提交材料。");
       }

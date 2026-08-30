@@ -119,7 +119,7 @@ const ERROR_DETAILS: Record<
     status: 409,
   },
   TURN_BUDGET_EXHAUSTED: {
-    message: "本场五轮面试已经结束，请进入复盘。",
+    message: "本场面试已经结束，请进入复盘。",
     recoverable: false,
     status: 409,
   },

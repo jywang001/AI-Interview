@@ -9,12 +9,11 @@ import {
   type LiveCoachReport,
   type LiveInterviewSession,
 } from "@/lib/interview/live-schemas";
+import { getTrainingReadiness } from "@/lib/interview/readiness";
 
 const SESSION_STORAGE_KEY = "ai-interview:live-session:v1";
 const REPORT_STORAGE_KEY = "ai-interview:live-report:v1";
 const DEMO_REPORT_ID = "demo-ai-developer";
-const PASS_SCORE = 85;
-
 const CRITERIA_LABELS = {
   directness: "回答针对性",
   specificity: "内容具体度",
@@ -55,6 +54,7 @@ type ReviewView = {
   score: number;
   summary: string;
   dimensions: Array<{ key: CriterionKey; label: string; stars: number }>;
+  disclaimer: string;
   priorities: string[];
   stages: StageView[];
 };
@@ -122,17 +122,17 @@ const DEMO_STAGES: StageView[] = [
     title: "算法思路",
     score: 82,
     stars: 4,
-    rationale: "主思路正确，但边界条件和复杂度分析出现得太晚。",
+    rationale: "主思路正确，但关键更新顺序和边界条件说明得偏晚。",
     strengths: ["能快速识别双指针思路"],
     gaps: ["没有主动覆盖空输入和重复值"],
-    nextAction: "固定按“澄清输入—主思路—复杂度—边界用例”四步表达。",
+    nextAction: "固定按“澄清输入—主思路—关键状态—边界用例”四步表达。",
     dialogues: [
       {
         id: "demo-4",
         question: "请讲一下无重复字符的最长子串的解题思路。",
         answer: "我会用滑动窗口，右指针扩张，遇到重复字符后移动左指针，并用哈希表记录字符最近出现的位置，整体只遍历一次。",
         quote: "用哈希表记录字符最近出现的位置",
-        comment: "核心数据结构正确；要强调左指针不能回退，并主动给出 O(n) 复杂度。",
+        comment: "核心数据结构正确；还要强调左指针不能回退，并主动覆盖边界用例。",
       },
     ],
   },
@@ -193,10 +193,11 @@ const DEMO_VIEW: ReviewView = {
     { key: "reflection", label: CRITERIA_LABELS.reflection, stars: 4 },
   ],
   priorities: [
-    "算法题先讲边界与复杂度，再展开实现细节。",
+    "算法题先讲关键状态与更新规则，再覆盖边界用例。",
     "项目回答补充一个失败方案，说明为什么最终方案更合适。",
     "技术选型使用明确条件和阈值，不只罗列工具名称。",
   ],
+  disclaimer: "本报告仅用于模拟面试训练，评分基于本场回答，不代表真实录用结果。",
   stages: DEMO_STAGES,
 };
 
@@ -233,6 +234,7 @@ function buildLiveView(
     score: report.overallScore,
     summary: report.summary,
     dimensions,
+    disclaimer: report.disclaimer,
     priorities: report.priorityActions,
     stages: report.stageReports.map((stage) => {
       const stageTurns = session.turns.filter((turn) => turn.stageId === stage.stageId);
@@ -329,7 +331,7 @@ export function InterviewReportDetail({ reportId }: { reportId: string }) {
     );
   }
 
-  const passed = view.score >= PASS_SCORE;
+  const readiness = getTrainingReadiness(view.score);
 
   return (
     <article className="review-detail">
@@ -337,16 +339,16 @@ export function InterviewReportDetail({ reportId }: { reportId: string }) {
 
       <section className="review-result-hero">
         <div className="review-score-block">
-          <span>综合得分</span>
+          <span>本场训练分</span>
           <strong>{view.score}</strong>
           <small>/ 100</small>
         </div>
         <div className="review-result-copy">
           <div className="review-title-row">
-            <span className={passed ? "result-pill is-pass" : "result-pill is-fail"}>
-              {passed ? "通过" : "未通过"}
+            <span className={`result-pill ${readiness.className}`}>
+              {readiness.label}
             </span>
-            <span>85 分为通过线</span>
+            <span>{readiness.description}</span>
           </div>
           <h1>{view.title}</h1>
           <p className="review-meta">{view.date} · {view.mode}</p>
@@ -449,6 +451,7 @@ export function InterviewReportDetail({ reportId }: { reportId: string }) {
           ))}
         </div>
       </section>
+      <p className="review-disclaimer">{view.disclaimer}</p>
     </article>
   );
 }

@@ -76,11 +76,11 @@ export function getProviderStatus() {
       credentialConfigured: volcTtsCredentialConfigured,
       voiceConfigured: volcTtsSpeakerConfigured,
       liveAdapterAvailable: true,
-      browserFallbackAvailable: true,
+      textFallbackAvailable: true,
       mode:
         volcTtsCredentialConfigured && volcTtsSpeakerConfigured
           ? ("live" as const)
-          : ("browser-fallback" as const),
+          : ("text-fallback" as const),
     },
   } as const;
 }

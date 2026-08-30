@@ -6,11 +6,10 @@ import {
   LiveCoachReportSchema,
   LiveInterviewSessionSchema,
 } from "@/lib/interview/live-schemas";
+import { getTrainingReadiness } from "@/lib/interview/readiness";
 
 const SESSION_STORAGE_KEY = "ai-interview:live-session:v1";
 const REPORT_STORAGE_KEY = "ai-interview:live-report:v1";
-const PASS_SCORE = 85;
-
 type ReviewRecord = {
   id: string;
   title: string;
@@ -123,7 +122,7 @@ export function ReviewHub() {
 }
 
 function ReviewRecordCard({ record }: { record: ReviewRecord }) {
-  const passed = record.score >= PASS_SCORE;
+  const readiness = getTrainingReadiness(record.score);
 
   return (
     <Link className="review-record-card" href={`/report/${record.id}`}>
@@ -137,8 +136,8 @@ function ReviewRecordCard({ record }: { record: ReviewRecord }) {
       </div>
       <div className="review-record-result">
         <strong>{record.score}</strong>
-        <span className={passed ? "result-pill is-pass" : "result-pill is-fail"}>
-          {passed ? "通过" : "未通过"}
+        <span className={`result-pill ${readiness.className}`}>
+          {readiness.label}
         </span>
       </div>
       <span className="review-record-arrow" aria-hidden="true">→</span>

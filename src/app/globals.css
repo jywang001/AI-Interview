@@ -3395,14 +3395,19 @@ textarea:focus-visible {
   line-height: 1;
 }
 
-.result-pill.is-pass {
+.result-pill.is-strong {
   color: #087a57;
   background: #e8f8f2;
 }
 
-.result-pill.is-fail {
-  color: #b04732;
-  background: #fff1ed;
+.result-pill.is-ready {
+  color: #2458b8;
+  background: #edf3ff;
+}
+
+.result-pill.is-developing {
+  color: #8b5a08;
+  background: #fff6df;
 }
 
 .review-record-arrow {
@@ -3825,6 +3830,18 @@ textarea:focus-visible {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.75;
+}
+
+.completion-copy > .completion-disclaimer {
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+.review-disclaimer {
+  margin: 20px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
 }
 
 .completion-actions {

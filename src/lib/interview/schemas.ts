@@ -179,7 +179,7 @@ export const CandidateBriefSchema = z
     if (unconfirmedRefs.length > 0) {
       ctx.addIssue({
         code: "custom",
-        message: "CandidateBrief may only contain user-confirmed source evidence.",
+        message: "CandidateBrief may only contain source-grounded evidence.",
         path: ["sourceEvidenceRefs"],
       });
     }

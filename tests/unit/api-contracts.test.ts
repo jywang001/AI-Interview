@@ -20,6 +20,12 @@ describe("API boundary contracts", () => {
         textToSpeech: expect.any(Object),
       }),
     );
+    expect(body.capabilities.textToSpeech).toEqual(
+      expect.objectContaining({ textFallbackAvailable: true }),
+    );
+    expect(body.capabilities.textToSpeech).not.toHaveProperty(
+      "browserFallbackAvailable",
+    );
     expect(JSON.stringify(body)).not.toMatch(/api[_-]?key|secret/i);
   });
 

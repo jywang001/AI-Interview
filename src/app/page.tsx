@@ -92,7 +92,7 @@ export default function Home() {
             <h2 id="home-outcomes-title">面试结束后</h2>
           </header>
           <ul>
-            <li><span>01</span><strong>综合得分与是否通过</strong></li>
+            <li><span>01</span><strong>训练得分与准备度</strong></li>
             <li><span>02</span><strong>七项能力评分</strong></li>
             <li><span>03</span><strong>逐阶段对话点评</strong></li>
           </ul>

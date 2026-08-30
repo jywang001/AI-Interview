@@ -487,7 +487,7 @@ const rawFixture = {
         confirmedRevisionId: "turn-5-r1",
         answerSource: "voice",
         decision: "finish",
-        decisionReason: "达到五轮预算；回答有方向，但缺少容量基线和量化质量护栏。",
+        decisionReason: "达到本场问题预算；回答有方向，但缺少容量基线和量化质量护栏。",
         createdAt: "2026-08-30T09:08:28+08:00",
         submittedAt: "2026-08-30T09:09:49+08:00",
       },

@@ -22,6 +22,7 @@ import {
   createLiveInterviewSession,
   INTERVIEW_MODE_COPY,
 } from "@/lib/interview/live-stages";
+import { getTrainingReadiness } from "@/lib/interview/readiness";
 import {
   CandidateBriefSchema,
   type CandidateBrief,
@@ -85,24 +86,25 @@ const DIFFICULTY_LABELS = {
 } as const;
 
 function InterviewCompletion({ report }: { report: LiveCoachReport }) {
-  const passed = report.overallScore >= 85;
+  const readiness = getTrainingReadiness(report.overallScore);
 
   return (
     <section className="interview-completion" aria-labelledby="completion-title">
       <div className="completion-score">
-        <span>综合得分</span>
+        <span>本场训练分</span>
         <strong>{report.overallScore}</strong>
         <small>/ 100</small>
       </div>
       <div className="completion-copy">
         <div>
-          <span className={passed ? "result-pill is-pass" : "result-pill is-fail"}>
-            {passed ? "通过" : "未通过"}
+          <span className={`result-pill ${readiness.className}`}>
+            {readiness.label}
           </span>
-          <span className="completion-threshold">85 分为通过线</span>
+          <span className="completion-threshold">{readiness.description}</span>
         </div>
         <h1 id="completion-title">本场面试已完成</h1>
         <p>{report.summary}</p>
+        <p className="completion-disclaimer">{report.disclaimer}</p>
         <div className="completion-actions">
           <Link className="button button-primary" href={`/report/${report.sessionId}`}>
             查看完整复盘 <span aria-hidden="true">→</span>
@@ -154,7 +156,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
           setCandidateBrief(parsedBrief.data);
           setRoleProfile(buildRoleProfile(parsedBrief.data.roleId));
         } else {
-          setContextError("没有读取到已确认的真实材料，请返回准备页重新确认。 ");
+          setContextError("没有读取到已完成原文核验的真实材料，请返回准备页重新提交。 ");
         }
         window.history.replaceState(null, "", window.location.pathname);
       }
