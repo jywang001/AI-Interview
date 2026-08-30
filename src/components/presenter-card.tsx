@@ -35,11 +35,10 @@ export function PresenterCard({ state, compact = false }: PresenterCardProps) {
           aria-label={`AI 面试官${stateCopy[state]}`}
           autoPlay
           className="presenter-media"
-          key={state}
           loop
           muted
           playsInline
-          poster="/presenter-idle.png"
+          poster="/interviewers/poster.jpg"
           preload="auto"
           src={stateVideo[state]}
         />
