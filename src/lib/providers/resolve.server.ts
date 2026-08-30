@@ -54,8 +54,14 @@ export function getProviderStatus() {
         : ("unconfigured" as const),
     },
     interview: {
-      liveAdapterAvailable: false,
-      mode: demoInterviewProvider.mode,
+      provider: "openai-compatible",
+      credentialConfigured: modelCredentialConfigured,
+      modelConfigured: modelNameConfigured,
+      liveAdapterAvailable: true,
+      demoFallbackAvailable: true,
+      mode: materialAnalysisConfigured
+        ? ("live" as const)
+        : demoInterviewProvider.mode,
     },
     speechToText: {
       provider: "volc-doubao",

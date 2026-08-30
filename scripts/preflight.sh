@@ -9,7 +9,6 @@ node --version
 pnpm --version
 git --version
 
-pnpm typecheck
-pnpm build
+pnpm test:all
 
 echo "Preflight passed. Next: copy .env.example to .env and run pnpm dev."

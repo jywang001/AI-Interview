@@ -58,11 +58,12 @@ pnpm dev
 ## 验证
 
 ```sh
-pnpm typecheck
-pnpm build
+pnpm test:all
 pnpm start
 curl -fsS http://127.0.0.1:3000/api/health
 ```
+
+`pnpm test:all` 会依次运行离线单元/接口测试、TypeScript 检查和生产构建。配置模型密钥后可额外运行 `pnpm test:ai`，自动评测面试官是否锚定原话、是否在知识盲点及时止损，以及 Coach 引用能否落回确认版 Transcript。完整命令和边界见 [自动化测试说明](docs/TESTING.md)，当前功能完成度见 [功能与测试状态](docs/FEATURE_STATUS.md)。
 
 提交或部署前还应人工检查：桌面和移动端宽度、空状态、一条成功路径、一条外部服务失败路径，以及从报告进入重练的完整跳转。
 

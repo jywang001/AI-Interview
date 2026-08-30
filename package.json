@@ -7,7 +7,13 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "check": "pnpm typecheck && pnpm build"
+    "test": "pnpm test:unit",
+    "test:unit": "vitest run tests/unit",
+    "test:watch": "vitest tests/unit",
+    "test:ai": "RUN_AI_EVALS=1 vitest run tests/ai --reporter=verbose",
+    "test:ai:report": "RUN_AI_EVALS=1 vitest run tests/ai --reporter=json --outputFile=evals/results/latest.json",
+    "test:all": "pnpm test:unit && pnpm typecheck && pnpm build",
+    "check": "pnpm test:all"
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.50",
@@ -23,7 +29,8 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@types/ws": "^8.18.1",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "3.2.4"
   },
   "engines": {
     "node": ">=22"

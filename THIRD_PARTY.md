@@ -21,6 +21,7 @@ This file records third-party software intentionally included in AI Interview. V
 | Node.js types (`@types/node`) | 26.4.0 | MIT | Node.js TypeScript declarations | https://github.com/DefinitelyTyped/DefinitelyTyped |
 | React types (`@types/react`) | 19.2.18 | MIT | React TypeScript declarations | https://github.com/DefinitelyTyped/DefinitelyTyped |
 | React DOM types (`@types/react-dom`) | 19.2.5 | MIT | React DOM TypeScript declarations | https://github.com/DefinitelyTyped/DefinitelyTyped |
+| Vitest (`vitest`) | 3.2.4 | MIT | Offline unit/API tests and opt-in live-model behavior evaluations | https://vitest.dev |
 
 ## System and fixture-generation tools
 
@@ -28,7 +29,7 @@ These tools are intentionally outside the Node dependency graph. `poppler-utils`
 
 | Tool | Version / source | License | Purpose | Upstream |
 | --- | --- | --- | --- | --- |
-| Poppler utilities (`pdftotext`) | Alpine `poppler-utils`; exact package version resolved during image build | GPL-2.0-or-later, with component notices upstream | Extract text from user-supplied text PDFs; `pdfinfo`, `pdffonts` and `pdftoppm` were also used for release QA | https://poppler.freedesktop.org |
+| Poppler utilities and mapping data (`pdftotext`, `poppler-data`) | Alpine `poppler-utils` and `poppler-data`; exact package versions resolved during image build | GPL-2.0-or-later and BSD-style mapping-data notices, with component notices upstream | Extract text from user-supplied text PDFs, including Chinese CID-font mappings; `pdfinfo`, `pdffonts` and `pdftoppm` were also used for release QA | https://poppler.freedesktop.org |
 | Python | 3.12.13 for the 2026-08-30 fixture build; developer-only | PSF-2.0 | Run the fixture PDF generation script | https://www.python.org |
 | ReportLab | 4.4.9 for the 2026-08-30 fixture build; developer-only | BSD-3-Clause | Generate the two fictional resume PDFs | https://www.reportlab.com/opensource |
 

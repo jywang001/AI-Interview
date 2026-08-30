@@ -13,6 +13,7 @@ dist/
 !**/.env.example
 .vercel/
 coverage/
+evals/results/*.json
 *.log
 *.tsbuildinfo
 npm-debug.log*
