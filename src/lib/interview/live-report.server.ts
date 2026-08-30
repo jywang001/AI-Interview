@@ -147,6 +147,7 @@ function promptForReport(session: LiveInterviewSession) {
     "评分必须根据回答本身，不得因学校、年龄、性别、口音、外貌或其他无关属性变化。不要判断录取概率。",
     "motivation_availability 阶段只评价岗位动机、经历匹配与表达；到岗时间和持续时间只写入 recruiterNotes，不作为高低分依据。",
     "candidate_questions 若明确表示暂无问题，可以评价表达是否明确，但不应仅因没有反问而判为零分。",
+    "algorithm_reasoning 只评价口述方案与实现逻辑是否正确完整；不得要求复杂度分析，也不得因为候选人没有说明时间或空间复杂度而扣分。",
     "strengths、gaps 和 nextAction 必须具体可执行。priorityActions 最多三项，按提升价值排序。",
     JSON.stringify({
       role: {

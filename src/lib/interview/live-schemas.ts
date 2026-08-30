@@ -23,6 +23,17 @@ export const LiveSessionStateSchema = z.enum([
   "REVIEWED",
 ]);
 
+export const AlgorithmProblemSchema = z
+  .object({
+    slug: z.string().min(1).max(100),
+    title: z.string().min(1).max(100),
+    difficulty: z.enum(["easy", "medium", "hard"]),
+    thinkingTimeSeconds: z.number().int().min(300).max(600),
+    prompt: z.string().min(1).max(500),
+    sourceLabel: z.literal("LeetCode Hot 100"),
+  })
+  .strict();
+
 export const EvidencePrioritySchema = z.enum(["must", "should", "optional"]);
 export const SlotStatusSchema = z.enum([
   "missing",
@@ -116,6 +127,12 @@ export const LiveInterviewSessionSchema = z
     stages: z.array(LiveStageSchema).length(LIVE_STAGE_IDS.length),
     currentStageIndex: z.number().int().min(0).max(LIVE_STAGE_IDS.length - 1),
     currentQuestionText: z.string().min(1).max(600),
+    algorithmProblem: AlgorithmProblemSchema,
+    algorithmThinkingEndsAt: z.string().datetime({ offset: true }).nullable(),
+    algorithmThinkingCompletedAt: z
+      .string()
+      .datetime({ offset: true })
+      .nullable(),
     turns: z.array(LiveInterviewTurnSchema).max(40),
     startedAt: z.string().datetime({ offset: true }),
     completedAt: z.string().datetime({ offset: true }).nullable(),
@@ -204,3 +221,4 @@ export type LiveStage = z.infer<typeof LiveStageSchema>;
 export type LiveInterviewTurn = z.infer<typeof LiveInterviewTurnSchema>;
 export type LiveInterviewSession = z.infer<typeof LiveInterviewSessionSchema>;
 export type LiveCoachReport = z.infer<typeof LiveCoachReportSchema>;
+export type AlgorithmProblem = z.infer<typeof AlgorithmProblemSchema>;

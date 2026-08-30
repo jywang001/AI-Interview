@@ -1832,6 +1832,55 @@ textarea:focus-visible {
   line-height: 1.65;
 }
 
+.algorithm-thinking-card {
+  padding: 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  color: white;
+  background: var(--ink);
+  border: 1px solid #30342f;
+  border-radius: 20px;
+}
+
+.algorithm-thinking-card > div:first-child {
+  display: grid;
+  gap: 7px;
+}
+
+.algorithm-thinking-card > div:first-child span,
+.algorithm-thinking-card > div:first-child small,
+.algorithm-countdown span {
+  color: #9da39a;
+  font: 800 9px/1.3 var(--mono);
+  letter-spacing: 0.07em;
+}
+
+.algorithm-thinking-card > div:first-child strong {
+  font-size: 20px;
+}
+
+.algorithm-countdown {
+  min-width: 130px;
+  padding: 14px;
+  display: grid;
+  gap: 7px;
+  text-align: right;
+  background: #272a27;
+  border-radius: 13px;
+}
+
+.algorithm-countdown strong {
+  color: var(--lime);
+  font: 600 32px/1 var(--mono);
+}
+
+.algorithm-thinking-card .button {
+  grid-column: 1 / -1;
+  width: fit-content;
+}
+
 .transcript-log summary {
   cursor: pointer;
   font-size: 12px;
@@ -2457,6 +2506,14 @@ textarea:focus-visible {
   .form-actions,
   .answer-actions {
     flex-direction: column;
+  }
+
+  .algorithm-thinking-card {
+    grid-template-columns: 1fr;
+  }
+
+  .algorithm-countdown {
+    text-align: left;
   }
 
   .hero-actions .button,

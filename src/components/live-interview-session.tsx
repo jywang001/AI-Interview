@@ -74,17 +74,29 @@ function stars(value: number) {
   return `${"★".repeat(value)}${"☆".repeat(5 - value)}`;
 }
 
+function formatCountdown(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+const DIFFICULTY_LABELS = {
+  easy: "简单",
+  medium: "中等",
+  hard: "困难",
+} as const;
+
 function CoachReport({ report }: { report: LiveCoachReport }) {
   return (
     <section className="live-report" aria-labelledby="live-report-title">
       <div className="live-report-hero">
         <div>
-          <p className="eyebrow">EVIDENCE-BASED COACH REPORT</p>
+          <p className="eyebrow">面试复盘</p>
           <h1 id="live-report-title">整场面试复盘</h1>
           <p>{report.summary}</p>
         </div>
         <div className="live-score">
-          <span>OVERALL</span>
+          <span>综合得分</span>
           <strong>{report.overallScore}</strong>
           <small>/ 100</small>
         </div>
@@ -163,6 +175,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
   const [requestError, setRequestError] = useState("");
   const [publicReaction, setPublicReaction] = useState("");
   const [closingMessage, setClosingMessage] = useState("");
+  const [clockNow, setClockNow] = useState(() => Date.now());
   const pendingSubmissionRef = useRef<PendingSubmission | null>(null);
 
   useEffect(() => {
@@ -215,6 +228,26 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
     }
   }, []);
 
+  useEffect(() => {
+    if (
+      !session ||
+      session.stages[session.currentStageIndex]?.id !== "algorithm_reasoning" ||
+      !session.algorithmThinkingEndsAt ||
+      session.algorithmThinkingCompletedAt ||
+      session.turns.some((turn) => turn.stageId === "algorithm_reasoning")
+    ) {
+      return;
+    }
+    const thinkingEndsAt = new Date(session.algorithmThinkingEndsAt).getTime();
+    setClockNow(Date.now());
+    const interval = window.setInterval(() => {
+      const now = Date.now();
+      setClockNow(now);
+      if (now >= thinkingEndsAt) window.clearInterval(interval);
+    }, 1_000);
+    return () => window.clearInterval(interval);
+  }, [session]);
+
   function startInterview(mode: InterviewMode) {
     const nextSession = createLiveInterviewSession({
       id: createClientId("session"),
@@ -239,6 +272,16 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
     setPublicReaction("");
     setClosingMessage("");
     setRequestError("");
+  }
+
+  function finishAlgorithmThinkingEarly() {
+    if (!session || session.state !== "INTERVIEWING") return;
+    const updated = LiveInterviewSessionSchema.parse({
+      ...session,
+      algorithmThinkingCompletedAt: new Date().toISOString(),
+    });
+    setSession(updated);
+    persistSession(updated);
   }
 
   async function requestCoachReport(completedSession: LiveSession) {
@@ -345,12 +388,23 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
         throw new Error("面试官返回了不完整的轮次，请重试本轮。 ");
       }
 
+      const enteringAlgorithm =
+        session.stages[session.currentStageIndex]?.id !== "algorithm_reasoning" &&
+        session.stages[nextStageIndex]?.id === "algorithm_reasoning";
       const updatedSession = LiveInterviewSessionSchema.parse({
         ...session,
         state: finished ? "ANALYZING" : "INTERVIEWING",
         currentStageIndex: nextStageIndex,
         currentQuestionText: nextQuestionText ?? session.currentQuestionText,
         turns: [...session.turns, parsedTurn.data],
+        algorithmThinkingEndsAt: enteringAlgorithm
+          ? new Date(
+              Date.now() + session.algorithmProblem.thinkingTimeSeconds * 1_000,
+            ).toISOString()
+          : session.algorithmThinkingEndsAt,
+        algorithmThinkingCompletedAt: enteringAlgorithm
+          ? null
+          : session.algorithmThinkingCompletedAt,
         completedAt: finished ? new Date().toISOString() : null,
       });
       pendingSubmissionRef.current = null;
@@ -381,7 +435,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
   if (contextError) {
     return (
       <section className="mode-select" role="alert">
-        <p className="eyebrow">MATERIAL CONTEXT REQUIRED</p>
+        <p className="eyebrow">材料尚未就绪</p>
         <h1>无法开始真实材料面试</h1>
         <p>{contextError}</p>
         <Link className="button button-primary" href="/prepare">
@@ -394,7 +448,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
   if (!session) {
     return (
       <section className="mode-select" aria-labelledby="mode-select-title">
-        <p className="eyebrow">INTERVIEW MODE</p>
+        <p className="eyebrow">开始面试</p>
         <h1 id="mode-select-title">选择本场面试强度</h1>
         <p>
           两种模式都完整走完六个阶段；区别只在追问深度与时长。全程连续进行，结束后统一复盘。
@@ -412,7 +466,6 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
                 onClick={() => startInterview(mode)}
                 type="button"
               >
-                <span>{mode === "quick" ? "QUICK" : "REALISTIC"}</span>
                 <strong>{copy.label}</strong>
                 <p>{copy.description}</p>
                 <small>{copy.duration}</small>
@@ -426,6 +479,22 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
 
   const currentStage = session.stages[session.currentStageIndex];
   const finished = session.state === "ANALYZING" || session.state === "REVIEWED";
+  const algorithmStageHasAnswer = session.turns.some(
+    (turn) => turn.stageId === "algorithm_reasoning",
+  );
+  const algorithmThinkingRemaining = session.algorithmThinkingEndsAt
+    ? Math.max(
+        0,
+        Math.ceil(
+          (new Date(session.algorithmThinkingEndsAt).getTime() - clockNow) / 1_000,
+        ),
+      )
+    : 0;
+  const algorithmThinkingActive =
+    currentStage.id === "algorithm_reasoning" &&
+    !algorithmStageHasAnswer &&
+    !session.algorithmThinkingCompletedAt &&
+    algorithmThinkingRemaining > 0;
 
   return (
     <>
@@ -449,9 +518,8 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
           ))}
         </div>
         <span>
-          {INTERVIEW_MODE_COPY[session.mode].label.toUpperCase()} · STAGE{" "}
-          {String(session.currentStageIndex + 1).padStart(2, "0")} / 06 ·{" "}
-          {session.turns.length} TURNS
+          {INTERVIEW_MODE_COPY[session.mode].label} · 第{" "}
+          {session.currentStageIndex + 1} / 6 阶段 · 已回答 {session.turns.length} 轮
         </span>
       </div>
 
@@ -463,7 +531,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
           <div className="interview-main">
             <section className="question-card">
               <div className="question-kicker">
-                <span>{finished ? "INTERVIEW COMPLETE" : currentStage.title}</span>
+                <span>{finished ? "面试已结束" : currentStage.title}</span>
                 <span>
                   {finished
                     ? `${session.turns.length} 轮确认回答已保存`
@@ -481,7 +549,33 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
               </div>
             </section>
 
-            {!finished && (
+            {!finished && currentStage.id === "algorithm_reasoning" && !algorithmStageHasAnswer && (
+              <section className="algorithm-thinking-card" aria-live="polite">
+                <div>
+                  <span>{session.algorithmProblem.sourceLabel}</span>
+                  <strong>{session.algorithmProblem.title}</strong>
+                  <small>
+                    {DIFFICULTY_LABELS[session.algorithmProblem.difficulty]} · 建议思考{" "}
+                    {session.algorithmProblem.thinkingTimeSeconds / 60} 分钟
+                  </small>
+                </div>
+                <div className="algorithm-countdown">
+                  <span>{algorithmThinkingActive ? "独立思考中" : "可以开始讲解"}</span>
+                  <strong>{formatCountdown(algorithmThinkingRemaining)}</strong>
+                </div>
+                {algorithmThinkingActive && (
+                  <button
+                    className="button button-secondary"
+                    onClick={finishAlgorithmThinkingEarly}
+                    type="button"
+                  >
+                    提前结束思考，开始讲解
+                  </button>
+                )}
+              </section>
+            )}
+
+            {!finished && !algorithmThinkingActive && (
               <VoiceRecorder
                 initialTranscript=""
                 key={`${session.turns.length}:${session.currentQuestionText}`}

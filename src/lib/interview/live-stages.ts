@@ -6,6 +6,7 @@ import {
   type LiveStage,
   type LiveStageId,
 } from "@/lib/interview/live-schemas";
+import { selectHot100Problem } from "@/lib/interview/hot100";
 import type {
   CandidateBrief,
   RoleProfile,
@@ -160,16 +161,25 @@ export function buildLiveStages(
     {
       id: "algorithm_reasoning",
       order: 4,
-      title: "算法思路问答",
-      purpose: "用口述思路替代 P0 代码执行，观察问题分解与边界意识。",
+      title: "Hot 100 算法讲解",
+      purpose: "独立思考后向面试官讲清解决方案与具体实现，不要求现场编码。",
       slots: [
-        slot("problem_restated", "理解题意", "准确复述问题与约束。", "must"),
-        slot("core_approach", "核心思路", "给出可执行的算法或数据结构方案。", "must"),
-        slot("complexity", "复杂度", "说明时间与空间复杂度。", "must"),
-        slot("edge_cases", "边界条件", "识别空输入、重复值或规模边界。", "should"),
+        slot("solution_core", "解题思路", "给出逻辑正确的核心解法。", "must"),
+        slot(
+          "implementation_walkthrough",
+          "实现讲解",
+          "说明所用数据结构、关键状态以及实现步骤。",
+          "must",
+        ),
+        slot(
+          "logic_completeness",
+          "逻辑完整性",
+          "关键分支、更新顺序或终止条件不存在明显缺口。",
+          "should",
+        ),
       ],
       maxFollowUps: realistic ? 4 : 2,
-      timeBudgetSeconds: realistic ? 720 : 300,
+      timeBudgetSeconds: realistic ? 600 : 420,
     },
     {
       id: "motivation_availability",
@@ -203,7 +213,10 @@ export function buildLiveStages(
 
 export function openingQuestionForStage(
   stageId: LiveStageId,
-  session: Pick<LiveInterviewSession, "candidateBrief" | "roleId">,
+  session: Pick<
+    LiveInterviewSession,
+    "candidateBrief" | "roleId" | "algorithmProblem"
+  >,
 ) {
   const brief = session.candidateBrief;
   const project = brief.projects[0];
@@ -218,8 +231,7 @@ export function openingQuestionForStage(
       session.roleId === "ai_algorithm"
         ? "如果要证明一个新模型方案确实优于更简单的 baseline，你会怎样设计数据划分、指标和对照实验？"
         : "请完整解释一个 LLM 应用请求从进入服务到返回答案的链路，并说明你会在哪里做评估、监控和降级。",
-    algorithm_reasoning:
-      "给定一个包含重复元素的无序数组，请设计一个方法找出第 K 大元素。先澄清约束，再说明核心思路、复杂度和边界情况。",
+    algorithm_reasoning: `算法题是「${session.algorithmProblem.title}」（${session.algorithmProblem.sourceLabel}）：${session.algorithmProblem.prompt} 你可以先独立思考，准备好后向我讲解思路和具体实现。`,
     motivation_availability: `为什么选择“${brief.job.title}”这个岗位？请结合你的经历说明匹配点。`,
     candidate_questions:
       "我们的主要问题到这里。你有什么想进一步了解的岗位、团队或工作内容吗？",
@@ -235,6 +247,11 @@ export function createLiveInterviewSession(input: {
   candidateBrief: CandidateBrief;
 }): LiveInterviewSession {
   const stages = buildLiveStages(input.roleProfile.id, input.mode);
+  const algorithmProblem = selectHot100Problem({
+    sessionId: input.id,
+    mode: input.mode,
+    roleId: input.roleProfile.id,
+  });
   const startedAt = new Date().toISOString();
   const base = {
     id: input.id,
@@ -246,6 +263,9 @@ export function createLiveInterviewSession(input: {
     stages,
     currentStageIndex: 0,
     currentQuestionText: "",
+    algorithmProblem,
+    algorithmThinkingEndsAt: null,
+    algorithmThinkingCompletedAt: null,
     turns: [],
     startedAt,
     completedAt: null,
