@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { CandidateCameraCard } from "@/components/candidate-camera-card";
 import { ElapsedWait } from "@/components/elapsed-wait";
 import { PresenterCard } from "@/components/presenter-card";
 import {
@@ -526,19 +527,22 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
 
       {!report && (
         <div className="interview-layout">
-          <PresenterCard
-            state={
-              finished
-                ? "idle"
-                : isThinking
-                  ? "thinking"
-                  : isPresenterSpeaking
-                    ? publicReaction
-                      ? "followup"
-                      : "speaking"
-                    : "listening"
-            }
-          />
+          <div className="interview-media-column">
+            <PresenterCard
+              state={
+                finished
+                  ? "idle"
+                  : isThinking
+                    ? "thinking"
+                    : isPresenterSpeaking
+                      ? publicReaction
+                        ? "followup"
+                        : "speaking"
+                      : "listening"
+              }
+            />
+            <CandidateCameraCard />
+          </div>
           <div className="interview-main">
             <section className="question-card">
               <div className="question-kicker">

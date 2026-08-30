@@ -4623,8 +4623,16 @@ textarea:focus-visible {
   gap: 36px;
 }
 
-.presenter-card {
+.interview-media-column {
+  position: sticky;
   top: 92px;
+  display: grid;
+  gap: 16px;
+}
+
+.presenter-card {
+  position: static;
+  top: auto;
   padding: 0;
   overflow: visible;
   color: var(--ink);
@@ -4685,6 +4693,116 @@ textarea:focus-visible {
 
 .presenter-note {
   display: none;
+}
+
+.candidate-camera-card {
+  color: var(--ink);
+}
+
+.candidate-camera-visual {
+  position: relative;
+  aspect-ratio: 16 / 12;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #f5f7fa;
+  border: 1px solid #e0e7f3;
+  border-radius: 12px;
+}
+
+.candidate-camera-feed {
+  width: 100%;
+  height: 100%;
+  display: none;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.candidate-camera-feed.is-active {
+  display: block;
+}
+
+.candidate-camera-empty {
+  display: grid;
+  justify-items: center;
+  color: var(--muted);
+  text-align: center;
+}
+
+.candidate-camera-empty svg {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 12px;
+  fill: none;
+  stroke: #75839a;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.candidate-camera-empty strong {
+  color: #4d596b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.candidate-camera-empty span {
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.candidate-camera-meta {
+  padding: 16px 2px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.candidate-camera-meta p,
+.candidate-camera-meta h2 {
+  margin: 0;
+}
+
+.candidate-camera-meta p {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.candidate-camera-meta h2 {
+  margin-top: 3px;
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.camera-toggle {
+  padding: 7px 10px;
+  color: #526071;
+  background: #f3f5f8;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.camera-toggle i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  background: #9aa4b2;
+  border-radius: 50%;
+}
+
+.camera-toggle.is-active {
+  color: #117a5a;
+  background: #eef8f5;
+}
+
+.camera-toggle.is-active i {
+  background: var(--green);
 }
 
 .interview-main {
@@ -5042,6 +5160,12 @@ textarea:focus-visible {
   .interview-layout {
     grid-template-columns: 1fr;
     gap: 34px;
+  }
+
+  .interview-media-column {
+    position: relative;
+    top: auto;
+    max-width: 620px;
   }
 
   .presenter-card {
