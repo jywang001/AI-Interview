@@ -428,7 +428,7 @@ P0 固定为 6 个必经阶段和 6 道主问题，确保流程像一场完整�
 
 - stage_count = 6。
 - anchor_turn_budget = 6。
-- per_stage_followup_budget = 1，所有阶段都允许 probe。
+- per_stage_followup_hard_cap = 3，所有阶段都允许 probe，但不预先分配固定追问数。
 - global_followup_budget = 4，快速模式整场最多实际触发 4 次追问。
 - turn_hard_cap = 10。
 
@@ -441,7 +441,7 @@ P0 固定为 6 个必经阶段和 6 道主问题，确保流程像一场完整�
 - 到岗信息不得进入技术能力评分。
 - 用户反问的回答不得编造 JD 或公司信息。
 - 一次只展示一个问题。
-- 每个阶段理论上都可追问；P0 每阶段最多追问一次。
+- 每个阶段理论上都可追问；是否追问只由回答充分性和剩余预算决定。
 - 是否追问取决于本阶段 required slots，而不是预先指定固定追问阶段。
 - 达到时间或轮次预算时正常收尾。
 
@@ -457,6 +457,42 @@ P0 固定为 6 个必经阶段和 6 道主问题，确保流程像一场完整�
 | 候选人反问 | 一个明确问题，或明确表示暂无问题 | 仅记录互动，不计技术分 |
 
 当 required slots 已覆盖时 `advance`；未覆盖且仍有追问预算时 `probe`；追问预算或时间耗尽时记录 `missing_slots` 后 `advance`。最后一个阶段结束后返回 `finish` 和自然结束语。
+
+### 8.6 回答充分性与追问决策
+
+Interviewer 每收到一轮用户确认后的回答，必须先完成 `assess → decide → ask`，不能先随意生成下一题再补理由。
+
+每个 Stage 的证据槽位分为三类：
+
+- **must**：本阶段的最低完成条件；缺失或矛盾时优先追问。
+- **should**：有助于判断深度；时间允许且继续追问有明显价值时再问。
+- **optional**：只用于丰富报告，不能单独阻止阶段推进。
+
+本阶段使用累计 Coverage Ledger。后续回答可以补齐前一轮缺口，已经由确认版原文支持的槽位不能因措辞变化被随意抹除。每轮结构化评估至少返回：
+
+| 字段 | 含义 |
+| --- | --- |
+| `directness` | 是否正面回答当前问题：sufficient / partial / off_topic |
+| `slot_updates` | 每个相关槽位的 covered / partial / missing / contradicted，以及对应回答原文摘录 |
+| `critical_missing_slots` | 当前最影响判断的 must 槽位 |
+| `probe_value` | 再追一问能否获得明显新增信息：high / low |
+| `decision` | probe / advance / finish |
+| `decision_summary` | 面向系统审计的简短判断摘要，不是隐藏思维链 |
+| `follow_up_anchor` | 追问所依据的用户原话；advance / finish 时为 null |
+| `next_question` | 一次只包含一个问题；finish 时为 null |
+
+决策规则：
+
+1. 存在 must 缺口或矛盾、`probe_value=high` 且预算允许时，返回 `probe`。
+2. 每次只选择一个最高优先级缺口，问题必须连接 `follow_up_anchor`，禁止泛泛地说“再具体一点”。
+3. must 已覆盖，或继续提问只会重复、只补 optional 信息时，立即 `advance`。
+4. 用户明确不知道时可以用一个降阶问题检验基础理解；不得围绕同一缺口无限改写问题。
+5. 阶段或全局预算耗尽时，把未覆盖项写入 Transcript 元数据后 `advance`，不得假装已经答好。
+6. 最后阶段完成或整场时间耗尽时返回 `finish`。
+
+Interviewer 给出结构化建议，确定性状态控制器负责校验预算、合法阶段顺序和输出 Schema。模型不能自行跳过阶段、增加轮次或把 `probe` 伪装成多个连续问题。正式面试界面不显示槽位、判断摘要或即时分数；这些数据只供状态控制和面试后 Coach 使用。
+
+示例：用户只说“我负责了整个 RAG 项目”时，`personal_contribution` 只能判为 partial，`implementation_evidence` 判为 missing。有效追问应锚定“负责了整个项目”，要求用户说明亲自负责的模块、关键决策和验证方式；不能重复问“请再详细介绍一下项目”。
 
 ---
 
