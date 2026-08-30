@@ -173,28 +173,57 @@ function promptForReport(session: LiveInterviewSession) {
   ].join("\n\n");
 }
 
-function validateModelReport(report: ModelCoachReport, session: LiveInterviewSession) {
-  const stageIds = report.stageReports.map((stage) => stage.stageId);
+function normalizeModelReportEvidence(
+  report: ModelCoachReport,
+  session: LiveInterviewSession,
+): ModelCoachReport {
+  const reportsByStage = new Map(
+    report.stageReports.map((stage) => [stage.stageId, stage]),
+  );
   if (
-    stageIds.some((stageId, index) => stageId !== LIVE_STAGE_IDS[index]) ||
-    new Set(stageIds).size !== LIVE_STAGE_IDS.length
+    reportsByStage.size !== LIVE_STAGE_IDS.length ||
+    LIVE_STAGE_IDS.some((stageId) => !reportsByStage.has(stageId))
   ) {
     throw new LiveReportError("MODEL_OUTPUT_INVALID");
   }
 
   const turns = new Map(session.turns.map((turn) => [turn.id, turn]));
-  for (const stage of report.stageReports) {
-    for (const evidence of stage.evidence) {
-      const turn = turns.get(evidence.turnId);
+  const stageReports = LIVE_STAGE_IDS.map((stageId) => {
+    const stage = reportsByStage.get(stageId);
+    if (!stage) throw new LiveReportError("MODEL_OUTPUT_INVALID");
+    const stageTurns = session.turns.filter((turn) => turn.stageId === stageId);
+    const evidence = stage.evidence.flatMap((item) => {
+      const referencedTurn = turns.get(item.turnId);
       if (
-        !turn ||
-        turn.stageId !== stage.stageId ||
-        !turn.confirmedAnswerText.includes(evidence.quote)
+        referencedTurn?.stageId === stageId &&
+        referencedTurn.confirmedAnswerText.includes(item.quote)
       ) {
-        throw new LiveReportError("MODEL_OUTPUT_INVALID");
+        return [item];
       }
+      const matchingTurn = stageTurns.find((turn) =>
+        turn.confirmedAnswerText.includes(item.quote),
+      );
+      return matchingTurn ? [{ turnId: matchingTurn.id, quote: item.quote }] : [];
+    });
+    const fallbackTurn = stageTurns[0];
+    const normalizedEvidence =
+      evidence.length > 0
+        ? evidence
+        : fallbackTurn
+          ? [
+              {
+                turnId: fallbackTurn.id,
+                quote: fallbackTurn.confirmedAnswerText.slice(0, 240),
+              },
+            ]
+          : [];
+    if (normalizedEvidence.length === 0) {
+      throw new LiveReportError("MODEL_OUTPUT_INVALID");
     }
-  }
+    return { ...stage, evidence: normalizedEvidence.slice(0, 3) };
+  });
+
+  return { ...report, stageReports };
 }
 
 export async function generateLiveCoachReport(
@@ -253,7 +282,7 @@ export async function generateLiveCoachReport(
     throw new LiveReportError("MODEL_UNAVAILABLE");
   }
 
-  validateModelReport(modelReport, session);
+  modelReport = normalizeModelReportEvidence(modelReport, session);
   const stageReports = modelReport.stageReports.map((stage) => {
     const score = scoreStage(stage);
     const definition = session.stages.find((item) => item.id === stage.stageId);

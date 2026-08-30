@@ -131,6 +131,8 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
   const [requestError, setRequestError] = useState("");
   const [publicReaction, setPublicReaction] = useState("");
   const [closingMessage, setClosingMessage] = useState("");
+  const [hasClosingPlaybackFinished, setHasClosingPlaybackFinished] =
+    useState(false);
   const [clockNow, setClockNow] = useState(() => Date.now());
   const pendingSubmissionRef = useRef<PendingSubmission | null>(null);
 
@@ -217,6 +219,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
     setReport(null);
     setPublicReaction("");
     setClosingMessage("");
+    setHasClosingPlaybackFinished(false);
     setRequestError("");
   }
 
@@ -227,6 +230,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
     setReport(null);
     setPublicReaction("");
     setClosingMessage("");
+    setHasClosingPlaybackFinished(false);
     setRequestError("");
   }
 
@@ -236,6 +240,28 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
       ...session,
       algorithmThinkingCompletedAt: new Date().toISOString(),
     });
+    setSession(updated);
+    persistSession(updated);
+  }
+
+  function startAlgorithmThinkingAfterPrompt() {
+    if (
+      !session ||
+      session.state !== "INTERVIEWING" ||
+      session.stages[session.currentStageIndex]?.id !== "algorithm_reasoning" ||
+      session.algorithmThinkingEndsAt ||
+      session.algorithmThinkingCompletedAt ||
+      session.turns.some((turn) => turn.stageId === "algorithm_reasoning")
+    ) {
+      return;
+    }
+    const updated = LiveInterviewSessionSchema.parse({
+      ...session,
+      algorithmThinkingEndsAt: new Date(
+        Date.now() + session.algorithmProblem.thinkingTimeSeconds * 1_000,
+      ).toISOString(),
+    });
+    setClockNow(Date.now());
     setSession(updated);
     persistSession(updated);
   }
@@ -354,9 +380,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
         currentQuestionText: nextQuestionText ?? session.currentQuestionText,
         turns: [...session.turns, parsedTurn.data],
         algorithmThinkingEndsAt: enteringAlgorithm
-          ? new Date(
-              Date.now() + session.algorithmProblem.thinkingTimeSeconds * 1_000,
-            ).toISOString()
+          ? null
           : session.algorithmThinkingEndsAt,
         algorithmThinkingCompletedAt: enteringAlgorithm
           ? null
@@ -368,7 +392,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
       setPublicReaction(payload.publicReaction?.trim() || "");
       setClosingMessage(payload.closingMessage?.trim() || "");
       persistSession(updatedSession);
-      if (finished) await requestCoachReport(updatedSession);
+      if (finished) setHasClosingPlaybackFinished(false);
     } catch (error) {
       const message =
         error instanceof DOMException && error.name === "AbortError"
@@ -446,11 +470,29 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
         ),
       )
     : 0;
+  const algorithmPromptPlaybackPending =
+    currentStage.id === "algorithm_reasoning" &&
+    !algorithmStageHasAnswer &&
+    !session.algorithmThinkingCompletedAt &&
+    !session.algorithmThinkingEndsAt;
   const algorithmThinkingActive =
     currentStage.id === "algorithm_reasoning" &&
     !algorithmStageHasAnswer &&
     !session.algorithmThinkingCompletedAt &&
     algorithmThinkingRemaining > 0;
+
+  function finishClosingPlayback() {
+    if (
+      !session ||
+      hasClosingPlaybackFinished ||
+      session.state !== "ANALYZING" ||
+      report
+    ) {
+      return;
+    }
+    setHasClosingPlaybackFinished(true);
+    void requestCoachReport(session);
+  }
 
   return (
     <>
@@ -516,8 +558,20 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
                   </small>
                 </div>
                 <div className="algorithm-countdown">
-                  <span>{algorithmThinkingActive ? "独立思考中" : "可以开始讲解"}</span>
-                  <strong>{formatCountdown(algorithmThinkingRemaining)}</strong>
+                  <span>
+                    {algorithmPromptPlaybackPending
+                      ? "面试官正在读题"
+                      : algorithmThinkingActive
+                        ? "独立思考中"
+                        : "可以开始讲解"}
+                  </span>
+                  <strong>
+                    {formatCountdown(
+                      algorithmPromptPlaybackPending
+                        ? session.algorithmProblem.thinkingTimeSeconds
+                        : algorithmThinkingRemaining,
+                    )}
+                  </strong>
                 </div>
                 {algorithmThinkingActive && (
                   <button
@@ -531,11 +585,19 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
               </section>
             )}
 
-            {!finished && !algorithmThinkingActive && (
+            {!finished && (
               <VoiceRecorder
+                answerEnabled={
+                  !algorithmPromptPlaybackPending && !algorithmThinkingActive
+                }
                 initialTranscript=""
                 key={`${session.turns.length}:${session.currentQuestionText}`}
                 onConfirm={submitConfirmedAnswer}
+                onQuestionPlaybackEnded={
+                  algorithmPromptPlaybackPending
+                    ? startAlgorithmThinkingAfterPrompt
+                    : undefined
+                }
                 question={session.currentQuestionText}
               />
             )}
@@ -560,7 +622,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
                   label="Coach 正在汇总六阶段证据并生成复盘"
                   timeoutSeconds={REPORT_TIMEOUT_MS / 1_000}
                 />
-                {!isGeneratingReport && !report && (
+                {hasClosingPlaybackFinished && !isGeneratingReport && !report && (
                   <button
                     className="button button-primary"
                     onClick={() => void requestCoachReport(session)}
@@ -570,6 +632,19 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
                   </button>
                 )}
               </section>
+            )}
+
+            {finished && (
+              <VoiceRecorder
+                answerEnabled={false}
+                initialTranscript=""
+                key={`closing:${closingMessage}`}
+                onQuestionPlaybackEnded={finishClosingPlayback}
+                question={
+                  closingMessage || "本场面试已结束，请留意后续通知。"
+                }
+                speakerOnly
+              />
             )}
 
             <details className="transcript-log">

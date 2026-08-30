@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ElapsedWait } from "@/components/elapsed-wait";
 import { convertRecordedAudioToWav } from "@/lib/speech/wav.client";
 
-const MAX_RECORDING_SECONDS = 60;
+const MAX_RECORDING_SECONDS = 120;
 const TRANSCRIPTION_TIMEOUT_MS = 45_000;
 const SYNTHESIS_TIMEOUT_MS = 20_000;
 
@@ -19,6 +19,9 @@ type VoiceRecorderProps = {
   question: string;
   initialTranscript: string;
   onConfirm?: (answer: ConfirmedAnswer) => Promise<void> | void;
+  answerEnabled?: boolean;
+  speakerOnly?: boolean;
+  onQuestionPlaybackEnded?: () => void;
 };
 
 export type ConfirmedAnswer = Readonly<{
@@ -101,6 +104,9 @@ export function VoiceRecorder({
   question,
   initialTranscript,
   onConfirm,
+  answerEnabled = true,
+  speakerOnly = false,
+  onQuestionPlaybackEnded,
 }: VoiceRecorderProps) {
   const [state, setState] = useState<RecorderState>("idle");
   const [error, setError] = useState("");
@@ -120,6 +126,13 @@ export function VoiceRecorder({
   const questionAudioRef = useRef<HTMLAudioElement | null>(null);
   const questionAudioUrlRef = useRef("");
   const synthesisControllerRef = useRef<AbortController | null>(null);
+  const playbackCompletionNotifiedRef = useRef(false);
+
+  function notifyQuestionPlaybackEnded() {
+    if (playbackCompletionNotifiedRef.current) return;
+    playbackCompletionNotifiedRef.current = true;
+    onQuestionPlaybackEnded?.();
+  }
 
   function clearRecordingTimers() {
     if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
@@ -296,6 +309,7 @@ export function VoiceRecorder({
         if (questionAudioUrlRef.current === url) {
           questionAudioUrlRef.current = "";
         }
+        notifyQuestionPlaybackEnded();
       },
       { once: true },
     );
@@ -425,6 +439,7 @@ export function VoiceRecorder({
             : "远端语音播放失败，请点击播放问题重试。",
         );
       }
+      notifyQuestionPlaybackEnded();
     } finally {
       clearTimeout(timeout);
       if (synthesisControllerRef.current === controller) {
@@ -449,7 +464,7 @@ export function VoiceRecorder({
 
   async function submitAnswer() {
     const confirmedAnswerText = transcript.trim();
-    if (confirmedAnswerText.length < 10 || isSubmitting) return;
+    if (confirmedAnswerText.length < 2 || isSubmitting) return;
 
     setError("");
     setIsSubmitting(true);
@@ -480,9 +495,13 @@ export function VoiceRecorder({
           onClick={() => void speakQuestion()}
           type="button"
         >
-          {isSynthesizing ? "生成语音中…" : "播放问题"}
+          {isSynthesizing
+            ? "生成语音中…"
+            : speakerOnly
+              ? "播放结束语"
+              : "播放问题"}
         </button>
-        {state !== "recording" ? (
+        {answerEnabled && state !== "recording" ? (
           <button
             className="record-button"
             disabled={recordingBusy}
@@ -496,7 +515,7 @@ export function VoiceRecorder({
                 ? "豆包语音转写中…"
                 : "开始语音回答"}
           </button>
-        ) : (
+        ) : answerEnabled ? (
           <button
             className="record-button is-recording"
             onClick={stopRecording}
@@ -505,9 +524,13 @@ export function VoiceRecorder({
             <i />
             回答完毕 · {recordingSeconds}s
           </button>
-        )}
+        ) : null}
         <span className="privacy-copy">
-          问题语音由 AI 生成 · 最长录音 60 秒 · 原始音频不落盘
+          {speakerOnly
+            ? "面试结束语由 AI 生成"
+            : answerEnabled
+              ? "问题语音由 AI 生成 · 最长录音 120 秒 · 原始音频不落盘"
+              : "面试官正在读题；播报结束后开始独立思考"}
         </span>
       </div>
 
@@ -517,18 +540,22 @@ export function VoiceRecorder({
         label="正在生成面试官语音"
         timeoutSeconds={SYNTHESIS_TIMEOUT_MS / 1_000}
       />
-      <ElapsedWait
-        active={state === "transcribing"}
-        compact
-        label="正在把录音转成可编辑文字"
-        timeoutSeconds={TRANSCRIPTION_TIMEOUT_MS / 1_000}
-      />
-      <ElapsedWait
-        active={isSubmitting}
-        compact
-        label="面试官正在判断回答并组织下一题"
-        timeoutSeconds={45}
-      />
+      {answerEnabled && (
+        <>
+          <ElapsedWait
+            active={state === "transcribing"}
+            compact
+            label="正在把录音转成可编辑文字"
+            timeoutSeconds={TRANSCRIPTION_TIMEOUT_MS / 1_000}
+          />
+          <ElapsedWait
+            active={isSubmitting}
+            compact
+            label="面试官正在判断回答并组织下一题"
+            timeoutSeconds={45}
+          />
+        </>
+      )}
 
       {error && (
         <p className="inline-error" role="alert">
@@ -536,62 +563,66 @@ export function VoiceRecorder({
         </p>
       )}
 
-      {transcriptionProvider && (
+      {answerEnabled && transcriptionProvider && (
         <p className="success-note" role="status">
           已由 {transcriptionProvider} 生成草稿，请核对技术名词后再提交。
         </p>
       )}
 
-      {audioUrl && (
+      {answerEnabled && audioUrl && (
         <audio className="audio-preview" controls src={audioUrl}>
           你的浏览器不支持音频预览。
         </audio>
       )}
 
-      <label className="transcript-editor">
-        <span>
-          回答转写
-          <small>
-            {state === "transcribing"
-              ? "正在识别，请稍候…"
-              : "只有你确认后的文字才会交给面试官和 Coach"}
-          </small>
-        </span>
-        <textarea
-          disabled={state === "transcribing"}
-          onChange={(event) => {
-            setTranscript(event.target.value);
-            setSubmitted(false);
-          }}
-          value={transcript}
-        />
-      </label>
+      {answerEnabled && (
+        <label className="transcript-editor">
+          <span>
+            回答转写
+            <small>
+              {state === "transcribing"
+                ? "正在识别，请稍候…"
+                : "只有你确认后的文字才会交给面试官和 Coach"}
+            </small>
+          </span>
+          <textarea
+            disabled={state === "transcribing"}
+            onChange={(event) => {
+              setTranscript(event.target.value);
+              setSubmitted(false);
+            }}
+            value={transcript}
+          />
+        </label>
+      )}
 
-      <div className="answer-actions">
-        <button
-          className="button button-ghost"
-          disabled={state === "transcribing"}
-          onClick={() => setTranscript("")}
-          type="button"
-        >
-          清空文字
-        </button>
-        <button
-          className="button button-primary"
-          disabled={
-            state === "transcribing" ||
-            isSubmitting ||
-            transcript.trim().length < 10
-          }
-          onClick={() => void submitAnswer()}
-          type="button"
-        >
-          {isSubmitting ? "面试官思考中…" : "确认并提交本轮"}
-          <span>→</span>
-        </button>
-      </div>
+      {answerEnabled && (
+        <div className="answer-actions">
+          <button
+            className="button button-ghost"
+            disabled={state === "transcribing"}
+            onClick={() => setTranscript("")}
+            type="button"
+          >
+            清空文字
+          </button>
+          <button
+            className="button button-primary"
+            disabled={
+              state === "transcribing" ||
+              isSubmitting ||
+              transcript.trim().length < 2
+            }
+            onClick={() => void submitAnswer()}
+            type="button"
+          >
+            {isSubmitting ? "面试官思考中…" : "确认并提交本轮"}
+            <span>→</span>
+          </button>
+        </div>
+      )}
 
-      {submitted && (
+      {answerEnabled && submitted && (
         <p className="success-note" role="status">
           {onConfirm
             ? "当前确认版回答已提交。"
