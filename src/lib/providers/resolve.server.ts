@@ -2,13 +2,31 @@ import {
   demoInterviewProvider,
   demoSpeechToTextProvider,
 } from "./demo";
+import { volcSpeechToTextProvider } from "@/lib/speech/volc-stt.server";
+
+function hasVolcSpeechCredentials() {
+  return Boolean(
+    process.env.VOLC_SPEECH_API_KEY?.trim() ||
+      (process.env.VOLC_SPEECH_APP_KEY?.trim() &&
+        process.env.VOLC_SPEECH_ACCESS_KEY?.trim()),
+  );
+}
+
+function hasVolcTtsCredentials() {
+  return Boolean(
+    process.env.VOLC_SPEECH_API_KEY?.trim() ||
+      process.env.VOLC_TTS_API_KEY?.trim(),
+  );
+}
 
 export function getInterviewProvider() {
   return demoInterviewProvider;
 }
 
 export function getSpeechToTextProvider() {
-  return demoSpeechToTextProvider;
+  return hasVolcSpeechCredentials()
+    ? volcSpeechToTextProvider
+    : demoSpeechToTextProvider;
 }
 
 export function getProviderStatus() {
@@ -18,6 +36,11 @@ export function getProviderStatus() {
   const modelNameConfigured = Boolean(process.env.OPENAI_MODEL?.trim());
   const materialAnalysisConfigured =
     modelCredentialConfigured && modelNameConfigured;
+  const volcSpeechCredentialConfigured = hasVolcSpeechCredentials();
+  const volcTtsCredentialConfigured = hasVolcTtsCredentials();
+  const volcTtsSpeakerConfigured = Boolean(
+    process.env.VOLC_TTS_SPEAKER?.trim(),
+  );
 
   return {
     activeMode: "hybrid" as const,
@@ -35,9 +58,23 @@ export function getProviderStatus() {
       mode: demoInterviewProvider.mode,
     },
     speechToText: {
-      credentialConfigured: Boolean(process.env.STT_API_KEY?.trim()),
-      liveAdapterAvailable: false,
-      mode: demoSpeechToTextProvider.mode,
+      provider: "volc-doubao",
+      credentialConfigured: volcSpeechCredentialConfigured,
+      liveAdapterAvailable: true,
+      mode: volcSpeechCredentialConfigured
+        ? ("live" as const)
+        : demoSpeechToTextProvider.mode,
+    },
+    textToSpeech: {
+      provider: "volc-doubao",
+      credentialConfigured: volcTtsCredentialConfigured,
+      voiceConfigured: volcTtsSpeakerConfigured,
+      liveAdapterAvailable: true,
+      browserFallbackAvailable: true,
+      mode:
+        volcTtsCredentialConfigured && volcTtsSpeakerConfigured
+          ? ("live" as const)
+          : ("browser-fallback" as const),
     },
   } as const;
 }

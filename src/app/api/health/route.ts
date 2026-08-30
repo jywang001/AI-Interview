@@ -14,6 +14,7 @@ export function GET() {
       materialAnalysis: providers.materialAnalysis,
       interview: providers.interview,
       speechToText: providers.speechToText,
+      textToSpeech: providers.textToSpeech,
     },
     timestamp: new Date().toISOString(),
   });
