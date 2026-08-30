@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+.cache/
+.env
+.env.*
+!.env.example
+.vercel/
+coverage/
+*.log
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+
+# Local operator access list. Commit only the example template.
+ops/authorized_keys.judges

@@ -1,0 +1,3 @@
+# Copy this file to ops/authorized_keys.judges and replace the examples locally.
+# Never add private keys. Review every public key owner before granting access.
+# ssh-ed25519 AAAA... teammate@example

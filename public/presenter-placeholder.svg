@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" role="img" aria-labelledby="title description">
+  <title id="title">AI Interview abstract presenter</title>
+  <desc id="description">An original geometric interviewer silhouette in a calm studio setting.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10231d"/>
+      <stop offset="1" stop-color="#28463a"/>
+    </linearGradient>
+    <linearGradient id="halo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb36b" stop-opacity=".92"/>
+      <stop offset="1" stop-color="#ff6843" stop-opacity=".12"/>
+    </linearGradient>
+    <linearGradient id="jacket" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#315c49"/>
+      <stop offset="1" stop-color="#172e26"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#07120e" flood-opacity=".38"/>
+    </filter>
+  </defs>
+
+  <rect width="960" height="720" rx="48" fill="url(#background)"/>
+  <path d="M0 536C165 458 306 479 457 535c149 55 318 51 503-49v234H0Z" fill="#f3ead9" fill-opacity=".08"/>
+  <circle cx="480" cy="292" r="218" fill="url(#halo)" opacity=".42"/>
+  <circle cx="480" cy="292" r="167" fill="none" stroke="#f7d2aa" stroke-opacity=".24" stroke-width="2" stroke-dasharray="8 16"/>
+
+  <g filter="url(#soft-shadow)">
+    <path d="M276 665c13-137 75-216 204-216s191 79 204 216Z" fill="url(#jacket)"/>
+    <path d="m394 469 86 109 86-109c-24-13-53-20-86-20s-62 7-86 20Z" fill="#f7efe3"/>
+    <path d="m448 536 32 42 32-42-17-36h-30Z" fill="#e55b3a"/>
+    <path d="M391 477c-36 30-60 86-69 188h84l42-129Z" fill="#234438"/>
+    <path d="M569 477c36 30 60 86 69 188h-84l-42-129Z" fill="#234438"/>
+    <rect x="432" y="379" width="96" height="104" rx="42" fill="#d8a77d"/>
+    <ellipse cx="480" cy="302" rx="126" ry="145" fill="#e6b58c"/>
+    <path d="M360 292c6-102 51-158 126-158 77 0 119 56 118 158-35-18-64-51-78-93-29 55-85 87-166 93Z" fill="#17211b"/>
+    <path d="M362 300c11 71 44 124 99 145-61-8-107-59-107-130 0-32 8-56 8-56Z" fill="#17211b"/>
+    <path d="M598 300c-11 71-44 124-99 145 61-8 107-59 107-130 0-32-8-56-8-56Z" fill="#17211b"/>
+    <path d="M412 309c20-12 41-12 61 0" fill="none" stroke="#563c30" stroke-width="8" stroke-linecap="round"/>
+    <path d="M487 309c20-12 41-12 61 0" fill="none" stroke="#563c30" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="446" cy="326" r="7" fill="#17211b"/>
+    <circle cx="514" cy="326" r="7" fill="#17211b"/>
+    <path d="M466 383c10 8 19 12 29 0" fill="none" stroke="#9f5345" stroke-width="7" stroke-linecap="round"/>
+  </g>
+
+  <g fill="none" stroke="#f7d2aa" stroke-linecap="round">
+    <path d="M102 116h124" stroke-opacity=".48" stroke-width="8"/>
+    <path d="M102 144h82" stroke-opacity=".24" stroke-width="5"/>
+    <path d="M734 116h124" stroke-opacity=".48" stroke-width="8"/>
+    <path d="M776 144h82" stroke-opacity=".24" stroke-width="5"/>
+  </g>
+  <circle cx="113" cy="606" r="6" fill="#ff7650"/>
+  <path d="M132 606h112" stroke="#f7d2aa" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/>
+</svg>
