@@ -78,7 +78,7 @@ const ERROR_DETAILS: Record<
     status: 502,
   },
   EVIDENCE_NOT_GROUNDED: {
-    message: "本次分析包含无法在原文核对的引用，请重新分析。",
+    message: "本次分析没有提取到足够的简历或 JD 原文证据，请检查 PDF 文本与 JD 后重试。",
     recoverable: true,
     status: 422,
   },

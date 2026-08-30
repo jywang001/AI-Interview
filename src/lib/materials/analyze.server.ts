@@ -14,6 +14,7 @@ import {
   type MaterialEvidenceSeed,
   type MaterialModelOutput,
 } from "@/lib/materials/schemas";
+import { groundMaterialOutput } from "@/lib/materials/evidence-grounding";
 import { materialAnalystPrompt } from "@/lib/system-prompt";
 
 const MODEL_TIMEOUT_MS = 60_000;
@@ -76,53 +77,6 @@ function getModelConfiguration() {
   }
 
   return { apiKey, model, baseURL: baseURL || undefined };
-}
-
-function assertGroundedEvidence(
-  output: MaterialModelOutput,
-  resumeText: string,
-  jdText: string,
-) {
-  const normalizedSources = {
-    resume: normalizeWhitespace(resumeText),
-    jd: normalizeWhitespace(jdText),
-  } as const;
-
-  const evidenceGroups: ReadonlyArray<{
-    expectedSource: MaterialEvidenceSeed["sourceType"];
-    seeds: readonly MaterialEvidenceSeed[];
-  }> = [
-    ...output.projects.map((project) => ({
-      expectedSource: "resume" as const,
-      seeds: project.evidence,
-    })),
-    { expectedSource: "jd", seeds: output.job.evidence },
-  ];
-
-  for (const group of evidenceGroups) {
-    for (const seed of group.seeds) {
-      const excerpt = normalizeWhitespace(seed.excerpt);
-      if (
-        seed.sourceType !== group.expectedSource ||
-        excerpt.length === 0 ||
-        !normalizedSources[seed.sourceType].includes(excerpt)
-      ) {
-        throw new MaterialAnalysisError("EVIDENCE_NOT_GROUNDED");
-      }
-    }
-  }
-
-  for (const project of output.projects) {
-    for (const claim of project.confirmedClaims) {
-      const normalizedClaim = normalizeWhitespace(claim);
-      if (
-        normalizedClaim.length === 0 ||
-        !normalizedSources.resume.includes(normalizedClaim)
-      ) {
-        throw new MaterialAnalysisError("EVIDENCE_NOT_GROUNDED");
-      }
-    }
-  }
 }
 
 function buildDraft(
@@ -290,10 +244,17 @@ export async function analyzeMaterials(
     throw new MaterialAnalysisError("MODEL_OUTPUT_INVALID");
   }
 
-  assertGroundedEvidence(parsedOutput.data, input.resumeText, input.jdText);
+  const groundedOutput = groundMaterialOutput(
+    parsedOutput.data,
+    input.resumeText,
+    input.jdText,
+  );
+  if (!groundedOutput) {
+    throw new MaterialAnalysisError("EVIDENCE_NOT_GROUNDED");
+  }
 
   return {
-    draft: buildDraft(input.roleId, parsedOutput.data),
+    draft: buildDraft(input.roleId, groundedOutput),
     model: configuration.model,
   };
 }
