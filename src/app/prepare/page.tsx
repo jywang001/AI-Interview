@@ -13,7 +13,7 @@ export default function PreparePage() {
             <h1>先让系统理解你，再开始提问。</h1>
           </div>
           <p>
-            首版固定中文快速综合模式。简历和 JD 会先生成可编辑草稿，未经你确认的内容不会被当作事实。
+            首版固定中文快速综合模式。简历和 JD 会先生成可核对草稿，未经你确认的内容不会被当作事实。
           </p>
         </header>
         <MaterialForm />

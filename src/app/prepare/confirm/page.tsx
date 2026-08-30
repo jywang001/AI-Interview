@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { DemoBanner } from "@/components/demo-banner";
 import { FlowProgress } from "@/components/flow-progress";
+import { LiveMaterialReview } from "@/components/live-material-review";
 import {
   demoCandidateBrief,
   demoInterviewSession,
@@ -13,11 +14,23 @@ export const metadata: Metadata = {
 };
 
 type ConfirmPageProps = {
-  searchParams: Promise<{ role?: string }>;
+  searchParams: Promise<{ role?: string; source?: string }>;
 };
 
 export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
-  const { role } = await searchParams;
+  const { role, source } = await searchParams;
+
+  if (source === "live") {
+    return (
+      <AppShell active="prepare">
+        <main className="workspace-page">
+          <FlowProgress current="confirm" />
+          <LiveMaterialReview />
+        </main>
+      </AppShell>
+    );
+  }
+
   const requestedAlgorithm = role === "ai_algorithm";
   const project = demoCandidateBrief.projects[0];
 

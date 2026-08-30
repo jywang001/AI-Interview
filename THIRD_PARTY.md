@@ -22,10 +22,21 @@ This file records third-party software intentionally included in AI Interview. V
 | React types (`@types/react`) | 19.2.18 | MIT | React TypeScript declarations | https://github.com/DefinitelyTyped/DefinitelyTyped |
 | React DOM types (`@types/react-dom`) | 19.2.5 | MIT | React DOM TypeScript declarations | https://github.com/DefinitelyTyped/DefinitelyTyped |
 
+## System and fixture-generation tools
+
+These tools are intentionally outside the Node dependency graph. `poppler-utils` is installed in the Docker builder and runner; Python and ReportLab are needed only when a developer regenerates the committed demo PDFs and are not installed in the production image.
+
+| Tool | Version / source | License | Purpose | Upstream |
+| --- | --- | --- | --- | --- |
+| Poppler utilities (`pdftotext`) | Alpine `poppler-utils`; exact package version resolved during image build | GPL-2.0-or-later, with component notices upstream | Extract text from user-supplied text PDFs; `pdfinfo`, `pdffonts` and `pdftoppm` were also used for release QA | https://poppler.freedesktop.org |
+| Python | 3.12.13 for the 2026-08-30 fixture build; developer-only | PSF-2.0 | Run the fixture PDF generation script | https://www.python.org |
+| ReportLab | 4.4.9 for the 2026-08-30 fixture build; developer-only | BSD-3-Clause | Generate the two fictional resume PDFs | https://www.reportlab.com/opensource |
+
 ## Assets and hosted services
 
 - `public/presenter-placeholder.svg` is an original project asset; it does not incorporate a third-party image, icon set or character design.
-- No external font, stock media, question bank or competitor asset is included in the initial scaffold.
+- The two PDFs in `output/pdf/` reference the standard `STSong-Light` CID font mapping supplied by ReportLab and the PDF core font Helvetica. `pdffonts` reports both as non-embedded, so no local or proprietary font binary is redistributed in these artifacts.
+- No stock media, external question bank or competitor asset is included in the initial scaffold.
 - Model and speech services are deployment choices, not redistributed software. Before a public deployment, record the selected provider, applicable terms, processing region and retention policy here or in a linked operations document.
 
 ## Review procedure

@@ -901,6 +901,52 @@ textarea:focus-visible {
   line-height: 1.5;
 }
 
+.material-privacy {
+  margin: 0 34px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.material-status.is-loading {
+  color: #3e3f79;
+  background: var(--violet-soft);
+}
+
+.material-status.is-error,
+.live-confirm-message.is-error {
+  color: #8c3026;
+  background: #fbe7e3;
+}
+
+.material-status.is-success,
+.live-confirm-message.is-success {
+  color: #245f42;
+  background: #e5f3ea;
+}
+
+.field-error {
+  margin-top: 9px;
+  color: #a0392e;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.jd-field .field-error {
+  align-self: flex-start;
+}
+
+.upload-zone:has(input:focus-visible) {
+  outline: 3px solid rgba(91, 92, 226, 0.22);
+  outline-offset: 3px;
+}
+
+.upload-zone:has(input[aria-invalid="true"]),
+.jd-field:has(textarea[aria-invalid="true"]) {
+  border-color: #cf766c;
+}
+
 .demo-banner {
   margin-bottom: 18px;
   padding: 11px 14px;
@@ -1136,6 +1182,220 @@ textarea:focus-visible {
 
 .plan-panel .button + .button {
   margin-top: 10px;
+}
+
+.live-review-state {
+  max-width: 700px;
+  padding: 34px;
+}
+
+.live-review-state h2 {
+  margin: 16px 0 8px;
+  font-size: 24px;
+}
+
+.live-review-state p {
+  margin: 0 0 22px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.status-pill.is-warning {
+  color: #8c3026;
+  background: #fbe7e3;
+}
+
+.review-lead {
+  margin: 0 0 14px;
+  color: #555a52;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.compact-review-list {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: #4f544d;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.compact-review-list li + li {
+  margin-top: 7px;
+}
+
+.live-claim-list {
+  margin-top: 14px;
+}
+
+.live-claim-list .claim-item > span {
+  color: #765d24;
+  background: #f5eab5;
+}
+
+.review-details {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #f7f8f3;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.review-details summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.evidence-source-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  list-style: none;
+}
+
+.evidence-source-list li {
+  padding: 14px;
+  background: #f2f3ed;
+  border-radius: 12px;
+}
+
+.evidence-source-list li > div {
+  margin-bottom: 9px;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.evidence-source-list small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.evidence-source-list q {
+  display: block;
+  color: #454a43;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.evidence-source-type {
+  padding: 4px 6px;
+  color: var(--violet-dark);
+  background: var(--violet-soft);
+  border-radius: 5px;
+  font: 800 8px/1 var(--mono);
+}
+
+.review-columns {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.review-columns > div {
+  padding: 14px;
+  background: #f7f8f3;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.review-columns h4 {
+  margin: 0;
+  font-size: 11px;
+}
+
+.review-columns .compact-review-list {
+  margin-top: 10px;
+}
+
+.review-empty {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.compact-review-list.is-risk li::marker {
+  color: #b37424;
+}
+
+.compact-review-list.is-excluded li::marker {
+  color: #9c4d43;
+}
+
+.live-match-summary {
+  padding: 16px;
+  background: #252824;
+  border-radius: 13px;
+}
+
+.live-match-summary h3 {
+  margin: 0 0 10px;
+  color: #f5f6f1;
+  font-size: 11px;
+}
+
+.live-match-summary ul {
+  margin: 0;
+  padding-left: 17px;
+  color: #b9bfb6;
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.live-match-summary li + li {
+  margin-top: 7px;
+}
+
+.parse-meta-list {
+  margin: 18px 0;
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  background: #343832;
+  border-radius: 13px;
+}
+
+.parse-meta-list > div {
+  min-width: 0;
+  padding: 11px 13px;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 10px;
+  background: #252824;
+}
+
+.parse-meta-list dt {
+  color: #8e948b;
+  font-size: 9px;
+}
+
+.parse-meta-list dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #e7e9e3;
+  font-size: 10px;
+  text-align: right;
+}
+
+.live-confirm-notice {
+  margin: 0 0 16px;
+  color: #aeb4ab;
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.live-confirm-message {
+  margin: 0 0 14px;
+  padding: 11px 12px;
+  border-radius: 9px;
+  font-size: 10px;
+  line-height: 1.55;
 }
 
 /* Interview */
@@ -1933,6 +2193,7 @@ textarea:focus-visible {
   .role-comparison-grid,
   .role-grid,
   .material-grid,
+  .review-columns,
   .evidence-columns,
   .comparison-grid {
     grid-template-columns: 1fr;
@@ -2015,6 +2276,10 @@ textarea:focus-visible {
   }
 
   .material-status {
+    margin: 0 22px;
+  }
+
+  .material-privacy {
     margin: 0 22px;
   }
 

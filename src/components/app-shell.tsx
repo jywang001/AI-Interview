@@ -43,7 +43,7 @@ export function AppShell({ children, active }: AppShellProps) {
 
         <span className="build-chip">
           <i />
-          OFFLINE READY
+          LIVE MATERIALS · DEMO INTERVIEW
         </span>
       </header>
 
@@ -51,7 +51,7 @@ export function AppShell({ children, active }: AppShellProps) {
 
       <footer className="site-footer">
         <span>AI Interview · 训练工具，不提供真实面试代答</span>
-        <span>材料与录音默认仅用于本次会话</span>
+        <span>应用不长期保存材料；外部模型处理以部署说明为准</span>
       </footer>
     </div>
   );

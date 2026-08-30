@@ -1,4 +1,5 @@
 node_modules/
+.venv/
 .next/
 out/
 dist/
@@ -6,7 +7,10 @@ dist/
 .cache/
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
 .vercel/
 coverage/
 *.log
@@ -16,6 +20,16 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .DS_Store
+*.pem
+*.key
+*.p12
+*.pfx
+.ssh/
+id_rsa*
+id_ed25519*
+id_ecdsa*
+id_dsa*
 
 # Local operator access list. Commit only the example template.
-ops/authorized_keys.judges
+ops/authorized_keys*
+!ops/authorized_keys.example

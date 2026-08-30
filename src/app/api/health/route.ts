@@ -10,9 +10,11 @@ export function GET() {
     ok: true,
     service: process.env.NEXT_PUBLIC_APP_NAME ?? "ai-interview",
     mode: providers.activeMode,
-    modelConfigured: providers.llmCredentialConfigured,
-    speechConfigured: providers.sttCredentialConfigured,
-    liveAdaptersAvailable: providers.liveAdaptersAvailable,
+    capabilities: {
+      materialAnalysis: providers.materialAnalysis,
+      interview: providers.interview,
+      speechToText: providers.speechToText,
+    },
     timestamp: new Date().toISOString(),
   });
 }
