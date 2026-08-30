@@ -1,0 +1,487 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { PresenterCard } from "@/components/presenter-card";
+import {
+  VoiceRecorder,
+  type ConfirmedAnswer,
+} from "@/components/voice-recorder";
+import {
+  LiveCoachReportSchema,
+  LiveInterviewSessionSchema,
+  LiveInterviewTurnSchema,
+  type InterviewMode,
+  type LiveCoachReport,
+  type LiveInterviewSession as LiveSession,
+} from "@/lib/interview/live-schemas";
+import {
+  createLiveInterviewSession,
+  INTERVIEW_MODE_COPY,
+} from "@/lib/interview/live-stages";
+import type { InterviewSession } from "@/lib/interview/schemas";
+
+const SESSION_STORAGE_KEY = "ai-interview:live-session:v1";
+const REPORT_STORAGE_KEY = "ai-interview:live-report:v1";
+const INTERVIEW_RESPONSE_TIMEOUT_MS = 45_000;
+const REPORT_TIMEOUT_MS = 60_000;
+
+type LiveInterviewSessionProps = {
+  demoSession: InterviewSession;
+};
+
+type InterviewResponsePayload = {
+  ok?: boolean;
+  message?: string;
+  turn?: unknown;
+  publicReaction?: string;
+  nextStageIndex?: number;
+  nextQuestionText?: string | null;
+  closingMessage?: string | null;
+  interviewFinished?: boolean;
+};
+
+type ReportResponsePayload = {
+  ok?: boolean;
+  message?: string;
+  report?: unknown;
+};
+
+type PendingSubmission = {
+  signature: string;
+  requestId: string;
+};
+
+function createClientId(prefix: string) {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  return uuid
+    ? `${prefix}-${uuid}`
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function persistSession(session: LiveSession) {
+  window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+}
+
+function stars(value: number) {
+  return `${"★".repeat(value)}${"☆".repeat(5 - value)}`;
+}
+
+function CoachReport({ report }: { report: LiveCoachReport }) {
+  return (
+    <section className="live-report" aria-labelledby="live-report-title">
+      <div className="live-report-hero">
+        <div>
+          <p className="eyebrow">EVIDENCE-BASED COACH REPORT</p>
+          <h1 id="live-report-title">整场面试复盘</h1>
+          <p>{report.summary}</p>
+        </div>
+        <div className="live-score">
+          <span>OVERALL</span>
+          <strong>{report.overallScore}</strong>
+          <small>/ 100</small>
+        </div>
+      </div>
+
+      <div className="live-report-grid">
+        {report.stageReports.map((stage) => (
+          <article className="live-stage-report" key={stage.stageId}>
+            <div className="live-stage-report-head">
+              <div>
+                <p>{stage.title}</p>
+                <span aria-label={`${stage.stars} 星`}>{stars(stage.stars)}</span>
+              </div>
+              <strong>{stage.score}</strong>
+            </div>
+            <p className="live-stage-rationale">{stage.rationale}</p>
+            <blockquote>“{stage.evidence[0]?.quote}”</blockquote>
+            <div className="live-stage-findings">
+              <div>
+                <b>做得好的</b>
+                <p>{stage.strengths.join("；") || "本阶段暂无突出证据。"}</p>
+              </div>
+              <div>
+                <b>仍需补强</b>
+                <p>{stage.gaps.join("；") || "本阶段未发现关键缺口。"}</p>
+              </div>
+            </div>
+            <p className="live-next-action">
+              <b>下一步：</b>
+              {stage.nextAction}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      <div className="live-report-bottom">
+        <section>
+          <h2>优先整改</h2>
+          <ol>
+            {report.priorityActions.map((action) => (
+              <li key={action}>{action}</li>
+            ))}
+          </ol>
+        </section>
+        <section>
+          <h2>招聘信息记录</h2>
+          {report.recruiterNotes.length > 0 ? (
+            <ul>
+              {report.recruiterNotes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>本场没有额外的到岗或岗位安排信息。</p>
+          )}
+        </section>
+      </div>
+      <p className="live-report-disclaimer">{report.disclaimer}</p>
+    </section>
+  );
+}
+
+export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps) {
+  const [session, setSession] = useState<LiveSession | null>(null);
+  const [report, setReport] = useState<LiveCoachReport | null>(null);
+  const [hasRestored, setHasRestored] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [requestError, setRequestError] = useState("");
+  const [publicReaction, setPublicReaction] = useState("");
+  const [closingMessage, setClosingMessage] = useState("");
+  const pendingSubmissionRef = useRef<PendingSubmission | null>(null);
+
+  useEffect(() => {
+    try {
+      const savedSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
+      const parsedSession = savedSession
+        ? LiveInterviewSessionSchema.safeParse(JSON.parse(savedSession))
+        : null;
+      if (parsedSession?.success) setSession(parsedSession.data);
+
+      const savedReport = window.localStorage.getItem(REPORT_STORAGE_KEY);
+      const parsedReport = savedReport
+        ? LiveCoachReportSchema.safeParse(JSON.parse(savedReport))
+        : null;
+      if (
+        parsedReport?.success &&
+        parsedSession?.success &&
+        parsedReport.data.sessionId === parsedSession.data.id
+      ) {
+        setReport(parsedReport.data);
+      }
+    } catch {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
+      window.localStorage.removeItem(REPORT_STORAGE_KEY);
+    } finally {
+      setHasRestored(true);
+    }
+  }, []);
+
+  function startInterview(mode: InterviewMode) {
+    const nextSession = createLiveInterviewSession({
+      id: createClientId("session"),
+      mode,
+      roleProfile: demoSession.roleProfile,
+      candidateBrief: demoSession.candidateBrief,
+    });
+    window.localStorage.removeItem(REPORT_STORAGE_KEY);
+    persistSession(nextSession);
+    setSession(nextSession);
+    setReport(null);
+    setPublicReaction("");
+    setClosingMessage("");
+    setRequestError("");
+  }
+
+  function resetInterview() {
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    window.localStorage.removeItem(REPORT_STORAGE_KEY);
+    setSession(null);
+    setReport(null);
+    setPublicReaction("");
+    setClosingMessage("");
+    setRequestError("");
+  }
+
+  async function requestCoachReport(completedSession: LiveSession) {
+    setRequestError("");
+    setIsGeneratingReport(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REPORT_TIMEOUT_MS);
+    try {
+      const response = await fetch("/api/interview/live/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session: completedSession,
+          requestId: createClientId("report"),
+        }),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const payload = (await response.json().catch(() => ({}))) as ReportResponsePayload;
+      if (!response.ok || payload.ok !== true) {
+        throw new Error(payload.message || "复盘生成失败，面试记录已保存。 ");
+      }
+      const parsedReport = LiveCoachReportSchema.safeParse(payload.report);
+      if (!parsedReport.success) throw new Error("复盘结果格式不完整，请重试。 ");
+
+      const reviewedSession = LiveInterviewSessionSchema.parse({
+        ...completedSession,
+        state: "REVIEWED",
+      });
+      setSession(reviewedSession);
+      setReport(parsedReport.data);
+      persistSession(reviewedSession);
+      window.localStorage.setItem(
+        REPORT_STORAGE_KEY,
+        JSON.stringify(parsedReport.data),
+      );
+    } catch (error) {
+      setRequestError(
+        error instanceof DOMException && error.name === "AbortError"
+          ? "复盘生成超时，面试记录已保存在本机，可以直接重试。"
+          : error instanceof Error
+            ? error.message
+            : "复盘生成失败，面试记录已保存，可以直接重试。",
+      );
+    } finally {
+      clearTimeout(timeout);
+      setIsGeneratingReport(false);
+    }
+  }
+
+  async function submitConfirmedAnswer(answer: ConfirmedAnswer) {
+    if (!session || session.state !== "INTERVIEWING") return;
+    const signature = [
+      session.turns.length + 1,
+      session.currentQuestionText,
+      answer.answerSource,
+      answer.rawSttText ?? "",
+      answer.confirmedAnswerText,
+    ].join("\u0000");
+    let pending = pendingSubmissionRef.current;
+    if (!pending || pending.signature !== signature) {
+      pending = { signature, requestId: createClientId("interview") };
+      pendingSubmissionRef.current = pending;
+    }
+
+    setRequestError("");
+    setIsThinking(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      INTERVIEW_RESPONSE_TIMEOUT_MS,
+    );
+
+    try {
+      const response = await fetch("/api/interview/live/respond", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session,
+          answerSource: answer.answerSource,
+          rawSttText: answer.rawSttText,
+          confirmedAnswerText: answer.confirmedAnswerText,
+          requestId: pending.requestId,
+        }),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const payload = (await response.json().catch(() => ({}))) as InterviewResponsePayload;
+      if (!response.ok || payload.ok !== true) {
+        throw new Error(payload.message || "面试官暂时无法生成下一步，请重试。 ");
+      }
+
+      const parsedTurn = LiveInterviewTurnSchema.safeParse(payload.turn);
+      const nextStageIndex = payload.nextStageIndex;
+      const finished = payload.interviewFinished === true;
+      const nextQuestionText = payload.nextQuestionText?.trim() || null;
+      if (
+        !parsedTurn.success ||
+        typeof nextStageIndex !== "number" ||
+        nextStageIndex < 0 ||
+        nextStageIndex >= session.stages.length ||
+        (!finished && !nextQuestionText)
+      ) {
+        throw new Error("面试官返回了不完整的轮次，请重试本轮。 ");
+      }
+
+      const updatedSession = LiveInterviewSessionSchema.parse({
+        ...session,
+        state: finished ? "ANALYZING" : "INTERVIEWING",
+        currentStageIndex: nextStageIndex,
+        currentQuestionText: nextQuestionText ?? session.currentQuestionText,
+        turns: [...session.turns, parsedTurn.data],
+        completedAt: finished ? new Date().toISOString() : null,
+      });
+      pendingSubmissionRef.current = null;
+      setSession(updatedSession);
+      setPublicReaction(payload.publicReaction?.trim() || "");
+      setClosingMessage(payload.closingMessage?.trim() || "");
+      persistSession(updatedSession);
+      if (finished) await requestCoachReport(updatedSession);
+    } catch (error) {
+      const message =
+        error instanceof DOMException && error.name === "AbortError"
+          ? "面试官响应超时；回答文字已经保留，请直接重试提交。"
+          : error instanceof Error
+            ? error.message
+            : "提交失败；回答文字已经保留，请重试。";
+      setRequestError(message);
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+      setIsThinking(false);
+    }
+  }
+
+  if (!hasRestored) {
+    return <p className="success-note">正在恢复本机面试记录…</p>;
+  }
+
+  if (!session) {
+    return (
+      <section className="mode-select" aria-labelledby="mode-select-title">
+        <p className="eyebrow">INTERVIEW MODE</p>
+        <h1 id="mode-select-title">选择本场面试强度</h1>
+        <p>
+          两种模式都完整走完六个阶段；区别只在追问深度与时长。全程连续进行，结束后统一复盘。
+        </p>
+        <div className="mode-grid">
+          {(["quick", "realistic"] as const).map((mode) => {
+            const copy = INTERVIEW_MODE_COPY[mode];
+            return (
+              <button
+                className="mode-card"
+                key={mode}
+                onClick={() => startInterview(mode)}
+                type="button"
+              >
+                <span>{mode === "quick" ? "QUICK" : "REALISTIC"}</span>
+                <strong>{copy.label}</strong>
+                <p>{copy.description}</p>
+                <small>{copy.duration}</small>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
+  const currentStage = session.stages[session.currentStageIndex];
+  const finished = session.state === "ANALYZING" || session.state === "REVIEWED";
+
+  return (
+    <>
+      <div className="interview-topline">
+        <div
+          className="session-progress"
+          aria-label={`当前第 ${session.currentStageIndex + 1} 阶段，共 ${session.stages.length} 阶段`}
+        >
+          {session.stages.map((stage, index) => (
+            <i
+              className={
+                index < session.currentStageIndex || finished
+                  ? "is-complete"
+                  : index === session.currentStageIndex
+                    ? "is-current"
+                    : undefined
+              }
+              key={stage.id}
+              title={`${stage.order}. ${stage.title}`}
+            />
+          ))}
+        </div>
+        <span>
+          {INTERVIEW_MODE_COPY[session.mode].label.toUpperCase()} · STAGE{" "}
+          {String(session.currentStageIndex + 1).padStart(2, "0")} / 06 ·{" "}
+          {session.turns.length} TURNS
+        </span>
+      </div>
+
+      {!report && (
+        <div className="interview-layout">
+          <PresenterCard
+            state={finished ? "idle" : isThinking ? "thinking" : "speaking"}
+          />
+          <div className="interview-main">
+            <section className="question-card">
+              <div className="question-kicker">
+                <span>{finished ? "INTERVIEW COMPLETE" : currentStage.title}</span>
+                <span>
+                  {finished
+                    ? `${session.turns.length} 轮确认回答已保存`
+                    : `阶段 ${currentStage.order} · 自动判断追问深度`}
+                </span>
+              </div>
+              <h1>
+                {finished
+                  ? closingMessage || "本场面试已结束，正在生成整场复盘。"
+                  : session.currentQuestionText}
+              </h1>
+              <div className="source-reference">
+                <span>{publicReaction ? "面试官回应" : "本阶段目标"}</span>
+                {publicReaction || currentStage.purpose}
+              </div>
+            </section>
+
+            {!finished && (
+              <VoiceRecorder
+                initialTranscript=""
+                key={`${session.turns.length}:${session.currentQuestionText}`}
+                onConfirm={submitConfirmedAnswer}
+                question={session.currentQuestionText}
+              />
+            )}
+
+            {requestError && (
+              <p className="inline-error" role="alert">
+                {requestError}
+              </p>
+            )}
+
+            {finished && (
+              <section className="analysis-card" aria-live="polite">
+                <strong>
+                  {isGeneratingReport ? "Coach 正在复盘整场证据…" : "面试记录已保存"}
+                </strong>
+                <p>
+                  对话已保存在当前浏览器。复盘失败不会影响 Transcript，可以随时重试。
+                </p>
+                {!isGeneratingReport && !report && (
+                  <button
+                    className="button button-primary"
+                    onClick={() => void requestCoachReport(session)}
+                    type="button"
+                  >
+                    重新生成复盘 <span>→</span>
+                  </button>
+                )}
+              </section>
+            )}
+
+            <details className="transcript-log">
+              <summary>查看已保存对话 · {session.turns.length} 轮</summary>
+              {session.turns.map((turn) => (
+                <article key={turn.id}>
+                  <b>面试官：{turn.questionText}</b>
+                  <p>你：{turn.confirmedAnswerText}</p>
+                </article>
+              ))}
+            </details>
+          </div>
+        </div>
+      )}
+
+      {report && <CoachReport report={report} />}
+
+      <div className="session-reset">
+        <button className="button button-ghost" onClick={resetInterview} type="button">
+          开始一场新面试
+        </button>
+      </div>
+    </>
+  );
+}
