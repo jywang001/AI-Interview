@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { SpeechRequestIdSchema } from "@/lib/speech/schemas";
 import {
-  synthesizeWithVolc,
+  streamSynthesisWithVolc,
   VolcTtsError,
   type VolcTtsErrorCode,
 } from "@/lib/speech/volc-tts.server";
@@ -57,27 +57,27 @@ const ERROR_DETAILS: Record<
     status: 413,
   },
   TTS_NOT_CONFIGURED: {
-    message: "语音合成服务尚未配置，将使用浏览器朗读。",
+    message: "语音合成服务尚未配置，请检查服务配置。",
     recoverable: true,
     status: 503,
   },
   TTS_TIMEOUT: {
-    message: "语音合成超时，将使用浏览器朗读。",
+    message: "语音合成超时，请稍后重试。",
     recoverable: true,
     status: 504,
   },
   TTS_BUSY: {
-    message: "语音合成服务繁忙，将使用浏览器朗读。",
+    message: "语音合成服务繁忙，请稍后重试。",
     recoverable: true,
     status: 503,
   },
   TTS_UNAVAILABLE: {
-    message: "语音合成服务暂时不可用，将使用浏览器朗读。",
+    message: "语音合成服务暂时不可用，请稍后重试。",
     recoverable: true,
     status: 502,
   },
   TTS_RESPONSE_INVALID: {
-    message: "本次语音合成结果无效，将使用浏览器朗读。",
+    message: "本次语音合成结果无效，请稍后重试。",
     recoverable: true,
     status: 502,
   },
@@ -193,25 +193,55 @@ export async function POST(request: Request) {
   }
 
   try {
-    const audio = await synthesizeWithVolc({
+    const providerStream = await streamSynthesisWithVolc({
       requestId,
       text: parsedRequest.data.text,
     });
-    return new Response(audio, {
+    const providerReader = providerStream.getReader();
+    let released = false;
+    const releaseOnce = () => {
+      if (released) return;
+      released = true;
+      releaseRequest();
+    };
+    const responseStream = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        try {
+          const { done, value } = await providerReader.read();
+          if (done) {
+            releaseOnce();
+            controller.close();
+            return;
+          }
+          controller.enqueue(value);
+        } catch (error) {
+          releaseOnce();
+          controller.error(error);
+        }
+      },
+      async cancel(reason) {
+        try {
+          await providerReader.cancel(reason);
+        } finally {
+          releaseOnce();
+        }
+      },
+    });
+
+    return new Response(responseStream, {
       status: 200,
       headers: {
         ...NO_STORE_HEADERS,
-        "Content-Length": String(audio.byteLength),
         "Content-Type": "audio/mpeg",
+        "X-Accel-Buffering": "no",
         "X-Request-Id": requestId,
       },
     });
   } catch (error) {
+    releaseRequest();
     if (error instanceof VolcTtsError) {
       return errorResponse(PROVIDER_ERROR_CODES[error.code], requestId);
     }
     return errorResponse("TTS_UNAVAILABLE", requestId);
-  } finally {
-    releaseRequest();
   }
 }

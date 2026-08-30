@@ -236,93 +236,105 @@ function isMp3(bytes: Uint8Array) {
   return hasId3Header || hasMp3FrameHeader;
 }
 
-async function readAudioStream(response: Response) {
+function createAudioStream(response: Response, timeoutSignal: AbortSignal) {
   if (!response.body) {
     throw new VolcTtsError("INVALID_RESPONSE");
   }
 
   const reader = response.body.getReader();
-  const decoder = new TextDecoder("utf-8", { fatal: true });
-  const audioChunks: Buffer[] = [];
-  let audioBytes = 0;
-  let streamBytes = 0;
-  let pending = "";
-  let sawFinalChunk = false;
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const decoder = new TextDecoder("utf-8", { fatal: true });
+      let audioBytes = 0;
+      let streamBytes = 0;
+      let pending = "";
+      let sawAudioChunk = false;
+      let sawFinalChunk = false;
 
-  const handleJsonObject = (rawObject: string) => {
-    let value: unknown;
-    try {
-      value = JSON.parse(rawObject);
-    } catch {
-      throw new VolcTtsError("INVALID_RESPONSE");
-    }
+      const handleJsonObject = (rawObject: string) => {
+        let value: unknown;
+        try {
+          value = JSON.parse(rawObject);
+        } catch {
+          throw new VolcTtsError("INVALID_RESPONSE");
+        }
 
-    const parsed = VolcTtsChunkSchema.safeParse(value);
-    if (!parsed.success) {
-      throw new VolcTtsError("INVALID_RESPONSE");
-    }
+        const parsed = VolcTtsChunkSchema.safeParse(value);
+        if (!parsed.success) {
+          throw new VolcTtsError("INVALID_RESPONSE");
+        }
 
-    const code = String(parsed.data.code);
-    if (code === "20000000") {
-      sawFinalChunk = true;
-      return;
-    }
-    if (code !== "0" && code !== "3000") {
-      throw new VolcTtsError("UPSTREAM_UNAVAILABLE");
-    }
-    if (!parsed.data.data) {
-      return;
-    }
+        const code = String(parsed.data.code);
+        if (code === "20000000") {
+          sawFinalChunk = true;
+          return;
+        }
+        if (code !== "0" && code !== "3000") {
+          throw new VolcTtsError("UPSTREAM_UNAVAILABLE");
+        }
+        if (!parsed.data.data) {
+          return;
+        }
 
-    const audioChunk = decodeBase64(parsed.data.data);
-    audioBytes += audioChunk.byteLength;
-    if (audioBytes > MAX_AUDIO_BYTES) {
-      throw new VolcTtsError("INVALID_RESPONSE");
-    }
-    audioChunks.push(audioChunk);
-  };
+        const audioChunk = decodeBase64(parsed.data.data);
+        audioBytes += audioChunk.byteLength;
+        if (audioBytes > MAX_AUDIO_BYTES) {
+          throw new VolcTtsError("INVALID_RESPONSE");
+        }
+        if (!sawAudioChunk && !isMp3(audioChunk)) {
+          throw new VolcTtsError("INVALID_RESPONSE");
+        }
 
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+        sawAudioChunk = true;
+        controller.enqueue(new Uint8Array(audioChunk));
+      };
 
-      streamBytes += value.byteLength;
-      if (streamBytes > MAX_STREAM_BYTES) {
-        throw new VolcTtsError("INVALID_RESPONSE");
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          streamBytes += value.byteLength;
+          if (streamBytes > MAX_STREAM_BYTES) {
+            throw new VolcTtsError("INVALID_RESPONSE");
+          }
+
+          pending += decoder.decode(value, { stream: true });
+          const parsed = extractJsonObjects(pending, false);
+          pending = parsed.remainder;
+          for (const rawObject of parsed.objects) {
+            handleJsonObject(rawObject);
+          }
+        }
+
+        pending += decoder.decode();
+        const parsed = extractJsonObjects(pending, true);
+        for (const rawObject of parsed.objects) {
+          handleJsonObject(rawObject);
+        }
+
+        if (!sawFinalChunk || !sawAudioChunk) {
+          throw new VolcTtsError("INVALID_RESPONSE");
+        }
+        controller.close();
+      } catch (error) {
+        await reader.cancel().catch(() => undefined);
+        if (timeoutSignal.aborted) {
+          controller.error(new VolcTtsError("UPSTREAM_TIMEOUT"));
+        } else if (error instanceof VolcTtsError) {
+          controller.error(error);
+        } else {
+          controller.error(new VolcTtsError("INVALID_RESPONSE"));
+        }
       }
-
-      pending += decoder.decode(value, { stream: true });
-      const parsed = extractJsonObjects(pending, false);
-      pending = parsed.remainder;
-      for (const rawObject of parsed.objects) {
-        handleJsonObject(rawObject);
-      }
-    }
-
-    pending += decoder.decode();
-    const parsed = extractJsonObjects(pending, true);
-    for (const rawObject of parsed.objects) {
-      handleJsonObject(rawObject);
-    }
-  } catch (error) {
-    await reader.cancel().catch(() => undefined);
-    if (error instanceof VolcTtsError) throw error;
-    throw new VolcTtsError("INVALID_RESPONSE");
-  }
-
-  if (!sawFinalChunk || audioChunks.length === 0) {
-    throw new VolcTtsError("INVALID_RESPONSE");
-  }
-
-  const audio = Buffer.concat(audioChunks, audioBytes);
-  if (!isMp3(audio)) {
-    throw new VolcTtsError("INVALID_RESPONSE");
-  }
-  return audio;
+    },
+    async cancel(reason) {
+      await reader.cancel(reason).catch(() => undefined);
+    },
+  });
 }
 
-export async function synthesizeWithVolc(input: {
+export async function streamSynthesisWithVolc(input: {
   requestId: string;
   text: string;
 }) {
@@ -384,13 +396,5 @@ export async function synthesizeWithVolc(input: {
     throw new VolcTtsError(classifyHttpFailure(response.status));
   }
 
-  try {
-    return await readAudioStream(response);
-  } catch (error) {
-    if (timeoutSignal.aborted) {
-      throw new VolcTtsError("UPSTREAM_TIMEOUT");
-    }
-    if (error instanceof VolcTtsError) throw error;
-    throw new VolcTtsError("INVALID_RESPONSE");
-  }
+  return createAudioStream(response, timeoutSignal);
 }

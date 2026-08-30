@@ -47,6 +47,56 @@ function createRequestId() {
   return globalThis.crypto?.randomUUID?.() ?? `speech-${Date.now()}`;
 }
 
+function waitForMediaSourceOpen(mediaSource: MediaSource) {
+  if (mediaSource.readyState === "open") return Promise.resolve();
+
+  return new Promise<void>((resolve, reject) => {
+    const handleOpen = () => {
+      cleanup();
+      resolve();
+    };
+    const handleClose = () => {
+      cleanup();
+      reject(new Error("MEDIA_SOURCE_CLOSED"));
+    };
+    const cleanup = () => {
+      mediaSource.removeEventListener("sourceopen", handleOpen);
+      mediaSource.removeEventListener("sourceclose", handleClose);
+    };
+
+    mediaSource.addEventListener("sourceopen", handleOpen, { once: true });
+    mediaSource.addEventListener("sourceclose", handleClose, { once: true });
+  });
+}
+
+function appendAudioChunk(sourceBuffer: SourceBuffer, chunk: Uint8Array) {
+  return new Promise<void>((resolve, reject) => {
+    const handleUpdateEnd = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = () => {
+      cleanup();
+      reject(new Error("SOURCE_BUFFER_ERROR"));
+    };
+    const cleanup = () => {
+      sourceBuffer.removeEventListener("updateend", handleUpdateEnd);
+      sourceBuffer.removeEventListener("error", handleError);
+    };
+
+    sourceBuffer.addEventListener("updateend", handleUpdateEnd, { once: true });
+    sourceBuffer.addEventListener("error", handleError, { once: true });
+    try {
+      const ownedChunk = new Uint8Array(chunk.byteLength);
+      ownedChunk.set(chunk);
+      sourceBuffer.appendBuffer(ownedChunk);
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
+  });
+}
+
 export function VoiceRecorder({
   question,
   initialTranscript,
@@ -69,6 +119,7 @@ export function VoiceRecorder({
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const questionAudioRef = useRef<HTMLAudioElement | null>(null);
   const questionAudioUrlRef = useRef("");
+  const synthesisControllerRef = useRef<AbortController | null>(null);
 
   function clearRecordingTimers() {
     if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
@@ -81,11 +132,11 @@ export function VoiceRecorder({
     return () => {
       clearRecordingTimers();
       streamRef.current?.getTracks().forEach((track) => track.stop());
+      synthesisControllerRef.current?.abort();
       questionAudioRef.current?.pause();
       if (questionAudioUrlRef.current) {
         URL.revokeObjectURL(questionAudioUrlRef.current);
       }
-      window.speechSynthesis?.cancel();
     };
   }, []);
 
@@ -167,8 +218,9 @@ export function VoiceRecorder({
     setSubmitted(false);
     setTranscriptionProvider("");
     setRawSttText(null);
+    synthesisControllerRef.current?.abort();
+    synthesisControllerRef.current = null;
     questionAudioRef.current?.pause();
-    window.speechSynthesis?.cancel();
 
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       setError("当前浏览器不支持录音，请直接使用文字回答。");
@@ -229,27 +281,124 @@ export function VoiceRecorder({
     }
   }
 
-  function speakQuestionWithBrowser() {
-    if (!("speechSynthesis" in window)) {
-      setError("当前浏览器不支持朗读，题目文字仍可正常使用。");
+  function replaceQuestionAudio(audio: HTMLAudioElement, url: string) {
+    questionAudioRef.current?.pause();
+    if (questionAudioUrlRef.current) {
+      URL.revokeObjectURL(questionAudioUrlRef.current);
+    }
+
+    questionAudioRef.current = audio;
+    questionAudioUrlRef.current = url;
+    audio.addEventListener(
+      "ended",
+      () => {
+        URL.revokeObjectURL(url);
+        if (questionAudioUrlRef.current === url) {
+          questionAudioUrlRef.current = "";
+        }
+      },
+      { once: true },
+    );
+  }
+
+  async function playBufferedRemoteAudio(response: Response) {
+    const audioBlob = await response.blob();
+    if (!audioBlob.type.startsWith("audio/") || audioBlob.size === 0) {
+      throw new Error("SYNTHESIS_INVALID_AUDIO");
+    }
+
+    const url = URL.createObjectURL(audioBlob);
+    const audio = new Audio(url);
+    replaceQuestionAudio(audio, url);
+    await audio.play();
+  }
+
+  async function playStreamingRemoteAudio(response: Response) {
+    if (
+      !response.body ||
+      !("MediaSource" in window) ||
+      !MediaSource.isTypeSupported("audio/mpeg")
+    ) {
+      await playBufferedRemoteAudio(response);
       return;
     }
 
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(question);
-    utterance.lang = "zh-CN";
-    window.speechSynthesis.speak(utterance);
+    const mediaSource = new MediaSource();
+    const url = URL.createObjectURL(mediaSource);
+    const audio = new Audio(url);
+    audio.preload = "auto";
+    replaceQuestionAudio(audio, url);
+
+    await waitForMediaSourceOpen(mediaSource);
+    const sourceBuffer = mediaSource.addSourceBuffer("audio/mpeg");
+    const reader = response.body.getReader();
+    let receivedAudio = false;
+    let playbackStarted = false;
+    let playbackAttempt: Promise<void> | null = null;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value.byteLength === 0) continue;
+
+        await appendAudioChunk(sourceBuffer, value);
+        receivedAudio = true;
+
+        if (!playbackAttempt) {
+          playbackAttempt = audio
+            .play()
+            .then(() => {
+              playbackStarted = true;
+            })
+            .catch(() => undefined);
+        }
+      }
+
+      if (!receivedAudio) {
+        throw new Error("SYNTHESIS_EMPTY_AUDIO");
+      }
+      if (sourceBuffer.updating) {
+        await new Promise<void>((resolve) => {
+          sourceBuffer.addEventListener("updateend", () => resolve(), {
+            once: true,
+          });
+        });
+      }
+      if (mediaSource.readyState === "open") {
+        mediaSource.endOfStream();
+      }
+
+      await playbackAttempt;
+      if (!playbackStarted) {
+        await audio.play();
+      }
+    } catch (error) {
+      await reader.cancel().catch(() => undefined);
+      if (mediaSource.readyState === "open") {
+        try {
+          mediaSource.endOfStream("decode");
+        } catch {
+          // The media source may already be closing after a decoder error.
+        }
+      }
+      throw error;
+    }
   }
 
   async function speakQuestion() {
-    if (isSynthesizing) return;
+    if (synthesisControllerRef.current) return;
 
     setError("");
     questionAudioRef.current?.pause();
-    window.speechSynthesis?.cancel();
     const controller = new AbortController();
+    synthesisControllerRef.current = controller;
+    let timedOut = false;
     const timeout = setTimeout(
-      () => controller.abort(),
+      () => {
+        timedOut = true;
+        controller.abort();
+      },
       SYNTHESIS_TIMEOUT_MS,
     );
     setIsSynthesizing(true);
@@ -267,45 +416,29 @@ export function VoiceRecorder({
       });
       if (!response.ok) throw new Error("SYNTHESIS_UNAVAILABLE");
 
-      const audioBlob = await response.blob();
-      if (!audioBlob.type.startsWith("audio/") || audioBlob.size === 0) {
-        throw new Error("SYNTHESIS_INVALID_AUDIO");
-      }
-
-      if (questionAudioUrlRef.current) {
-        URL.revokeObjectURL(questionAudioUrlRef.current);
-      }
-      const url = URL.createObjectURL(audioBlob);
-      questionAudioUrlRef.current = url;
-      const audio = new Audio(url);
-      questionAudioRef.current = audio;
-      audio.addEventListener(
-        "ended",
-        () => {
-          URL.revokeObjectURL(url);
-          if (questionAudioUrlRef.current === url) {
-            questionAudioUrlRef.current = "";
-          }
-        },
-        { once: true },
-      );
-      await audio.play();
+      await playStreamingRemoteAudio(response);
     } catch {
-      speakQuestionWithBrowser();
+      if (!controller.signal.aborted || timedOut) {
+        setError(
+          timedOut
+            ? "面试官语音生成超时，请点击播放问题重试。"
+            : "远端语音播放失败，请点击播放问题重试。",
+        );
+      }
     } finally {
       clearTimeout(timeout);
-      setIsSynthesizing(false);
+      if (synthesisControllerRef.current === controller) {
+        synthesisControllerRef.current = null;
+        setIsSynthesizing(false);
+      }
     }
   }
 
   useEffect(() => {
     if (!question.trim()) return;
 
-    // Use the local system voice for automatic playback so the interviewer
-    // starts speaking immediately. The replay button keeps the higher-quality
-    // Volcengine voice available when latency is less important.
     const timer = window.setTimeout(() => {
-      speakQuestionWithBrowser();
+      void speakQuestion();
     }, 0);
 
     return () => window.clearTimeout(timer);
