@@ -148,6 +148,7 @@ function promptForReport(session: LiveInterviewSession) {
     "motivation_availability 阶段只评价岗位动机、经历匹配与表达；到岗时间和持续时间只写入 recruiterNotes，不作为高低分依据。",
     "candidate_questions 若明确表示暂无问题，可以评价表达是否明确，但不应仅因没有反问而判为零分。",
     "algorithm_reasoning 只评价口述方案与实现逻辑是否正确完整；不得要求复杂度分析，也不得因为候选人没有说明时间或空间复杂度而扣分。",
+    "resume_deep_dive 应按目标岗位评价个人贡献和技术判断。只有简历或回答明确声称优化、提升或量化效果时，才把指标、测试或对照证据计入评分；普通项目不得因为没有量化结果而扣分。",
     "strengths、gaps 和 nextAction 必须具体可执行。priorityActions 最多三项，按提升价值排序。",
     JSON.stringify({
       role: {

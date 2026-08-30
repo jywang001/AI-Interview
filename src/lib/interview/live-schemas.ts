@@ -78,6 +78,7 @@ export const TurnAssessmentSchema = z
     slotUpdates: z.array(SlotUpdateSchema).min(1).max(10),
     criticalMissingSlotIds: z.array(z.string().min(1).max(80)).max(10),
     probeValue: z.enum(["high", "low"]),
+    probeKind: z.enum(["deepen", "pivot"]).nullable(),
     decisionSummary: z.string().min(1).max(300),
     followUpAnchor: z.string().min(1).max(500).nullable(),
   })

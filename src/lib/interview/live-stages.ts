@@ -7,6 +7,7 @@ import {
   type LiveStageId,
 } from "@/lib/interview/live-schemas";
 import { selectHot100Problem } from "@/lib/interview/hot100";
+import { primaryResumeQuestion } from "@/lib/interview/resume-focus";
 import type {
   CandidateBrief,
   RoleProfile,
@@ -105,6 +106,62 @@ export function buildLiveStages(
   mode: InterviewMode,
 ): LiveStage[] {
   const realistic = mode === "realistic";
+  const resumeSlots =
+    roleId === "ai_algorithm"
+      ? [
+          slot("personal_ownership", "个人贡献", "区分个人工作与团队工作。", "must"),
+          slot(
+            "algorithm_data_depth",
+            "算法与数据深度",
+            "说明亲自负责的方法、数据处理或训练实验细节。",
+            "must",
+          ),
+          slot(
+            "experimental_reasoning",
+            "实验判断",
+            "解释方法选择、baseline、实验设计或关键取舍。",
+            "should",
+          ),
+          slot(
+            "claimed_result_validation",
+            "结果核验",
+            "仅在候选人声称效果提升时核验指标、对照或评估方法。",
+            "should",
+          ),
+          slot(
+            "failure_generalization",
+            "失败与泛化",
+            "说明 bad case、适用边界或泛化风险。",
+            "optional",
+          ),
+        ]
+      : [
+          slot("personal_ownership", "个人贡献", "区分个人工作与团队工作。", "must"),
+          slot(
+            "system_depth",
+            "系统与实现深度",
+            "说明亲自负责的模块、数据流、状态或关键实现。",
+            "must",
+          ),
+          slot(
+            "engineering_reasoning",
+            "工程判断",
+            "解释方案选择以及效果、成本、延迟或可靠性取舍。",
+            "should",
+          ),
+          slot(
+            "claimed_result_validation",
+            "结果核验",
+            "仅在候选人声称优化或提升时核验测试、指标或对照。",
+            "should",
+          ),
+          slot(
+            "failure_boundary",
+            "失败与边界",
+            "说明故障、降级、局限或后续改进。",
+            "optional",
+          ),
+        ];
   const roleSlots =
     roleId === "ai_algorithm"
       ? [
@@ -138,16 +195,10 @@ export function buildLiveStages(
       id: "resume_deep_dive",
       order: 2,
       title: "简历项目拷打",
-      purpose: "验证简历主张、个人所有权、技术深度与结果证据。",
-      slots: [
-        slot("personal_ownership", "个人贡献", "区分个人决策、实现与团队工作。", "must"),
-        slot("implementation", "实现细节", "说明关键模块、数据流或技术实现。", "must"),
-        slot("decision_rationale", "方案理由", "解释为何这样设计及替代方案。", "should"),
-        slot("result_evidence", "结果证据", "给出评估方法、指标或可核验结果。", "must"),
-        slot("failure_limit", "失败与局限", "说明失败案例、边界或改进方向。", "should"),
-      ],
-      maxFollowUps: realistic ? 5 : 2,
-      timeBudgetSeconds: realistic ? 900 : 360,
+      purpose: "选择与 JD 最相关或最值得核验的经历，判断个人贡献与岗位技术深度。",
+      slots: resumeSlots,
+      maxFollowUps: realistic ? 4 : 2,
+      timeBudgetSeconds: realistic ? 720 : 360,
     },
     {
       id: "role_knowledge",
@@ -219,14 +270,11 @@ export function openingQuestionForStage(
   >,
 ) {
   const brief = session.candidateBrief;
-  const project = brief.projects[0];
   const roleLabel = session.roleId === "ai_algorithm" ? "AI 算法岗" : "AI 应用开发岗";
 
   const questions: Record<LiveStageId, string> = {
     self_intro: `欢迎参加本次 ${roleLabel} 模拟面试。请先用 90 秒做一个自我介绍，重点讲与目标岗位最相关的经历。`,
-    resume_deep_dive: project
-      ? `我们具体聊聊你简历里的“${project.name}”。请说明你亲自负责了什么、核心方案如何实现，以及你如何验证结果。`
-      : "请选择简历中最有代表性的项目，说明你的个人贡献、核心实现和结果证据。",
+    resume_deep_dive: primaryResumeQuestion(brief),
     role_knowledge:
       session.roleId === "ai_algorithm"
         ? "如果要证明一个新模型方案确实优于更简单的 baseline，你会怎样设计数据划分、指标和对照实验？"
