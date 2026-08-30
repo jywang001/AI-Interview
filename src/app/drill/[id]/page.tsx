@@ -35,7 +35,7 @@ export default async function DrillPage({ params }: DrillPageProps) {
 
         <header className="workspace-heading">
           <div>
-            <p className="eyebrow">DRILL / {id.toUpperCase()}</p>
+            <p className="eyebrow">针对性重练</p>
             <h1>不是换一道题，而是补上同一个证据缺口。</h1>
           </div>
           <p>{demoDrillAttempt.prompt}</p>
@@ -44,7 +44,7 @@ export default async function DrillPage({ params }: DrillPageProps) {
         <section className="report-panel">
           <div className="panel-title">
             <div>
-              <p>CHECK BEFORE ANSWERING</p>
+              <p>回答前检查</p>
               <h2>本轮只关注三个检查点</h2>
             </div>
             <span className="status-pill">同一目标</span>
@@ -59,7 +59,7 @@ export default async function DrillPage({ params }: DrillPageProps) {
         <section className="report-panel">
           <div className="panel-title">
             <div>
-              <p>ATTEMPT COMPARISON</p>
+              <p>回答对比</p>
               <h2>初答与重答的证据变化</h2>
             </div>
             <span className="status-pill">确有改善</span>
@@ -67,7 +67,7 @@ export default async function DrillPage({ params }: DrillPageProps) {
 
           <div className="comparison-grid">
             <article className="attempt-card">
-              <span>BEFORE · TURN 05</span>
+              <span>初次回答</span>
               <blockquote>{before?.confirmedAnswerText}</blockquote>
               <ul className="delta-list">
                 {demoDrillAttempt.comparison.remainingGaps.map((gap) => (
@@ -77,7 +77,7 @@ export default async function DrillPage({ params }: DrillPageProps) {
             </article>
 
             <article className="attempt-card is-new">
-              <span>AFTER · DRILL 01</span>
+              <span>重练回答</span>
               <blockquote>{after.confirmedAnswerText}</blockquote>
               <ul className="delta-list">
                 {demoDrillAttempt.comparison.evidenceAdded.map((item) => (
@@ -92,7 +92,7 @@ export default async function DrillPage({ params }: DrillPageProps) {
 
         <section className="closing-cta">
           <div>
-            <p className="eyebrow">COMPARISON RESULT</p>
+            <p className="eyebrow">对比结果</p>
             <h2>{demoDrillAttempt.comparison.summary}</h2>
           </div>
           <Link

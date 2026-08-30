@@ -170,7 +170,7 @@ export function LiveMaterialReview() {
       <>
         <header className="workspace-heading">
           <div>
-            <p className="eyebrow">CONFIRM / 02</p>
+            <p className="eyebrow">确认材料</p>
             <h1>正在读取解析结果。</h1>
           </div>
           <p>确认页只会读取本标签页刚刚保存的材料，不会回退到预置演示数据。</p>
@@ -188,7 +188,7 @@ export function LiveMaterialReview() {
       <>
         <header className="workspace-heading">
           <div>
-            <p className="eyebrow">CONFIRM / 02</p>
+            <p className="eyebrow">确认材料</p>
             <h1>这份解析结果无法继续确认。</h1>
           </div>
           <p>这里不会用演示数据替代缺失或损坏的真实材料，你可以安全返回并重新提交。</p>
@@ -213,7 +213,7 @@ export function LiveMaterialReview() {
     <>
       <header className="workspace-heading">
         <div>
-          <p className="eyebrow">CONFIRM / 02 · LIVE</p>
+          <p className="eyebrow">确认材料</p>
           <h1>先核对模型提取的事实，再决定是否确认。</h1>
         </div>
         <p>
@@ -225,7 +225,7 @@ export function LiveMaterialReview() {
         <section className="panel material-review" aria-labelledby="live-brief-title">
           <div className="panel-title">
             <div>
-              <p>CANDIDATE BRIEF DRAFT</p>
+              <p>候选人信息草稿</p>
               <h2 id="live-brief-title">{draft.displayName} · 实时解析草稿</h2>
             </div>
             <span className="status-pill">待你确认</span>

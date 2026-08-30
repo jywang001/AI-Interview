@@ -25,9 +25,9 @@ export const appConfig = {
     },
   ],
   navigation: [
-    { href: "/prepare", label: "准备材料" },
-    { href: "/interview/demo-ai-developer", label: "模拟面试" },
-    { href: "/report/demo-ai-developer", label: "证据复盘" },
+    { href: "/", label: "首页", key: "home" },
+    { href: "/prepare", label: "开始面试", key: "interview" },
+    { href: "/reports", label: "复盘提升", key: "report" },
   ],
 } as const;
 

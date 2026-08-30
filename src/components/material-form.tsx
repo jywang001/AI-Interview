@@ -196,7 +196,7 @@ export function MaterialForm() {
         <div className="section-heading">
           <span>01</span>
           <div>
-            <p>ROLE PROFILE</p>
+            <p>目标岗位</p>
             <h2 id="role-profile-heading">选择目标岗位</h2>
           </div>
         </div>
@@ -225,7 +225,7 @@ export function MaterialForm() {
         <div className="section-heading">
           <span>02</span>
           <div>
-            <p>SOURCE MATERIAL</p>
+            <p>材料来源</p>
             <h2>提交真实材料</h2>
           </div>
         </div>

@@ -29,7 +29,7 @@ export function PresenterCard({ state, compact = false }: PresenterCardProps) {
       </div>
       <div className="presenter-meta">
         <div>
-          <p>AI INTERVIEWER · 01</p>
+          <p>面试官</p>
           <h2>林序</h2>
         </div>
         <span className={"presenter-state state-" + state}>
@@ -39,7 +39,7 @@ export function PresenterCard({ state, compact = false }: PresenterCardProps) {
       </div>
       {!compact && (
         <p className="presenter-note">
-          专注项目证据与工程权衡。Presenter 可替换，面试状态与视觉渲染相互独立。
+          将根据你的回答自然追问，并在合适时进入下一阶段。
         </p>
       )}
     </section>

@@ -71,10 +71,6 @@ function persistSession(session: LiveSession) {
   window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
 }
 
-function stars(value: number) {
-  return `${"★".repeat(value)}${"☆".repeat(5 - value)}`;
-}
-
 function formatCountdown(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -87,75 +83,34 @@ const DIFFICULTY_LABELS = {
   hard: "困难",
 } as const;
 
-function CoachReport({ report }: { report: LiveCoachReport }) {
+function InterviewCompletion({ report }: { report: LiveCoachReport }) {
+  const passed = report.overallScore >= 85;
+
   return (
-    <section className="live-report" aria-labelledby="live-report-title">
-      <div className="live-report-hero">
+    <section className="interview-completion" aria-labelledby="completion-title">
+      <div className="completion-score">
+        <span>综合得分</span>
+        <strong>{report.overallScore}</strong>
+        <small>/ 100</small>
+      </div>
+      <div className="completion-copy">
         <div>
-          <p className="eyebrow">面试复盘</p>
-          <h1 id="live-report-title">整场面试复盘</h1>
-          <p>{report.summary}</p>
+          <span className={passed ? "result-pill is-pass" : "result-pill is-fail"}>
+            {passed ? "通过" : "未通过"}
+          </span>
+          <span className="completion-threshold">85 分为通过线</span>
         </div>
-        <div className="live-score">
-          <span>综合得分</span>
-          <strong>{report.overallScore}</strong>
-          <small>/ 100</small>
+        <h1 id="completion-title">本场面试已完成</h1>
+        <p>{report.summary}</p>
+        <div className="completion-actions">
+          <Link className="button button-primary" href={`/report/${report.sessionId}`}>
+            查看完整复盘 <span aria-hidden="true">→</span>
+          </Link>
+          <Link className="button button-secondary" href="/reports">
+            返回面试记录
+          </Link>
         </div>
       </div>
-
-      <div className="live-report-grid">
-        {report.stageReports.map((stage) => (
-          <article className="live-stage-report" key={stage.stageId}>
-            <div className="live-stage-report-head">
-              <div>
-                <p>{stage.title}</p>
-                <span aria-label={`${stage.stars} 星`}>{stars(stage.stars)}</span>
-              </div>
-              <strong>{stage.score}</strong>
-            </div>
-            <p className="live-stage-rationale">{stage.rationale}</p>
-            <blockquote>“{stage.evidence[0]?.quote}”</blockquote>
-            <div className="live-stage-findings">
-              <div>
-                <b>做得好的</b>
-                <p>{stage.strengths.join("；") || "本阶段暂无突出证据。"}</p>
-              </div>
-              <div>
-                <b>仍需补强</b>
-                <p>{stage.gaps.join("；") || "本阶段未发现关键缺口。"}</p>
-              </div>
-            </div>
-            <p className="live-next-action">
-              <b>下一步：</b>
-              {stage.nextAction}
-            </p>
-          </article>
-        ))}
-      </div>
-
-      <div className="live-report-bottom">
-        <section>
-          <h2>优先整改</h2>
-          <ol>
-            {report.priorityActions.map((action) => (
-              <li key={action}>{action}</li>
-            ))}
-          </ol>
-        </section>
-        <section>
-          <h2>招聘信息记录</h2>
-          {report.recruiterNotes.length > 0 ? (
-            <ul>
-              {report.recruiterNotes.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          ) : (
-            <p>本场没有额外的到岗或岗位安排信息。</p>
-          )}
-        </section>
-      </div>
-      <p className="live-report-disclaimer">{report.disclaimer}</p>
     </section>
   );
 }
@@ -630,7 +585,7 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
         </div>
       )}
 
-      {report && <CoachReport report={report} />}
+      {report && <InterviewCompletion report={report} />}
 
       <div className="session-reset">
         <button className="button button-ghost" onClick={resetInterview} type="button">
