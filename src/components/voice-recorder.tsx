@@ -129,6 +129,8 @@ export function VoiceRecorder({
   const questionAudioUrlRef = useRef("");
   const synthesisControllerRef = useRef<AbortController | null>(null);
   const playbackCompletionNotifiedRef = useRef(false);
+  const automaticRecordingStartedRef = useRef(false);
+  const recordingRequestInFlightRef = useRef(false);
 
   function notifyQuestionPlaybackEnded() {
     if (playbackCompletionNotifiedRef.current) return;
@@ -230,6 +232,15 @@ export function VoiceRecorder({
   }
 
   async function startRecording() {
+    if (
+      recordingRequestInFlightRef.current ||
+      recorderRef.current?.state === "recording"
+    ) {
+      return;
+    }
+
+    automaticRecordingStartedRef.current = true;
+    recordingRequestInFlightRef.current = true;
     setError("");
     setSubmitted(false);
     setTranscriptionProvider("");
@@ -239,6 +250,7 @@ export function VoiceRecorder({
     questionAudioRef.current?.pause();
 
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      recordingRequestInFlightRef.current = false;
       setError("当前浏览器不支持录音，请直接使用文字回答。");
       return;
     }
@@ -288,6 +300,8 @@ export function VoiceRecorder({
     } catch {
       setState("idle");
       setError("无法访问麦克风。你可以检查权限，或继续使用文字回答。");
+    } finally {
+      recordingRequestInFlightRef.current = false;
     }
   }
 
@@ -321,6 +335,13 @@ export function VoiceRecorder({
           questionAudioUrlRef.current = "";
         }
         notifyQuestionPlaybackEnded();
+        if (
+          answerEnabled &&
+          !speakerOnly &&
+          !automaticRecordingStartedRef.current
+        ) {
+          void startRecording();
+        }
       },
       { once: true },
     );
@@ -541,7 +562,7 @@ export function VoiceRecorder({
           {speakerOnly
             ? "面试结束语由 AI 生成"
             : answerEnabled
-              ? "问题语音由 AI 生成 · 最长录音 120 秒 · 原始音频不落盘"
+              ? "问题播报结束后自动录音 · 最长 120 秒 · 原始音频不落盘"
               : "面试官正在读题；播报结束后开始独立思考"}
         </span>
       </div>
