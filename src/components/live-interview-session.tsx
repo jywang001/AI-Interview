@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { ElapsedWait } from "@/components/elapsed-wait";
 import { PresenterCard } from "@/components/presenter-card";
 import {
   VoiceRecorder,
@@ -598,6 +599,12 @@ export function LiveInterviewSession({ demoSession }: LiveInterviewSessionProps)
                 <p>
                   对话已保存在当前浏览器。复盘失败不会影响 Transcript，可以随时重试。
                 </p>
+                <ElapsedWait
+                  active={isGeneratingReport}
+                  compact
+                  label="Coach 正在汇总六阶段证据并生成复盘"
+                  timeoutSeconds={REPORT_TIMEOUT_MS / 1_000}
+                />
                 {!isGeneratingReport && !report && (
                   <button
                     className="button button-primary"

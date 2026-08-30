@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ElapsedWait } from "@/components/elapsed-wait";
 import { convertRecordedAudioToWav } from "@/lib/speech/wav.client";
 
 const MAX_RECORDING_SECONDS = 60;
@@ -360,6 +361,25 @@ export function VoiceRecorder({
           问题语音由 AI 生成 · 最长录音 60 秒 · 原始音频不落盘
         </span>
       </div>
+
+      <ElapsedWait
+        active={isSynthesizing}
+        compact
+        label="正在生成面试官语音"
+        timeoutSeconds={SYNTHESIS_TIMEOUT_MS / 1_000}
+      />
+      <ElapsedWait
+        active={state === "transcribing"}
+        compact
+        label="正在把录音转成可编辑文字"
+        timeoutSeconds={TRANSCRIPTION_TIMEOUT_MS / 1_000}
+      />
+      <ElapsedWait
+        active={isSubmitting}
+        compact
+        label="面试官正在判断回答并组织下一题"
+        timeoutSeconds={45}
+      />
 
       {error && (
         <p className="inline-error" role="alert">

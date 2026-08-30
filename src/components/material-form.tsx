@@ -1,30 +1,57 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, FormEvent, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useState } from "react";
+import { ElapsedWait } from "@/components/elapsed-wait";
 import { appConfig, type RoleId } from "@/lib/app-config";
+import { CandidateBriefSchema } from "@/lib/interview/schemas";
 import {
   MAX_JD_CHARS,
   MAX_RESUME_BYTES,
   MIN_JD_CHARS,
   MaterialParseResponseSchema,
+  type MaterialParseSuccess,
 } from "@/lib/materials/schemas";
 
 const MATERIAL_PARSE_STORAGE_KEY = "ai-interview:material-parse:v1";
-
-const demoJd = [
-  "负责基于大模型的知识助手与智能工作流开发；",
-  "设计 RAG 检索、评估和可观测性方案；",
-  "优化模型调用的延迟、成本与稳定性；",
-  "熟悉 TypeScript 或 Python，有线上 AI 应用落地经验。",
-].join("\n");
+const CANDIDATE_BRIEF_STORAGE_KEY = "ai-interview:candidate-brief:v1";
 
 type SubmitState =
   | { kind: "idle" }
   | { kind: "loading"; message: string }
   | { kind: "error"; message: string }
   | { kind: "success"; message: string };
+
+function buildConfirmedCandidateBrief(payload: MaterialParseSuccess) {
+  const { draft } = payload;
+  const confirmEvidence = <T extends { confirmed: boolean }>(reference: T) => ({
+    ...reference,
+    confirmed: true as const,
+  });
+
+  return CandidateBriefSchema.safeParse({
+    id: draft.id,
+    displayName: draft.displayName,
+    roleId: draft.roleId,
+    headline: draft.headline,
+    education: draft.education,
+    experienceHighlights: draft.experienceHighlights,
+    projects: draft.projects.map((project) => ({
+      ...project,
+      evidenceRefs: project.evidenceRefs.map(confirmEvidence),
+    })),
+    skills: draft.skills,
+    job: {
+      ...draft.job,
+      evidenceRefs: draft.job.evidenceRefs.map(confirmEvidence),
+    },
+    matchHighlights: draft.matchHighlights,
+    verificationRisks: draft.verificationRisks,
+    excludedUnconfirmedItems: draft.excludedUnconfirmedItems,
+    sourceEvidenceRefs: draft.sourceEvidenceRefs.map(confirmEvidence),
+    confirmedAt: new Date().toISOString(),
+  });
+}
 
 function getResumeError(file: File | null) {
   if (!file) return "请选择一份文本型简历 PDF。";
@@ -61,19 +88,17 @@ function getJdError(jd: string) {
 
 export function MaterialForm() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [role, setRole] = useState<RoleId>("ai_application");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [fileTouched, setFileTouched] = useState(false);
   const [jd, setJd] = useState("");
   const [jdTouched, setJdTouched] = useState(false);
-  const [demoLoaded, setDemoLoaded] = useState(false);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
 
   const resumeError = getResumeError(resumeFile);
   const jdError = getJdError(jd);
   const isLoading = submitState.kind === "loading";
-  const canSubmit = !demoLoaded && !resumeError && !jdError && !isLoading;
+  const canSubmit = !resumeError && !jdError && !isLoading;
 
   function resetSubmitState() {
     if (submitState.kind !== "idle") setSubmitState({ kind: "idle" });
@@ -82,19 +107,7 @@ export function MaterialForm() {
   function selectFile(event: ChangeEvent<HTMLInputElement>) {
     setResumeFile(event.target.files?.[0] ?? null);
     setFileTouched(true);
-    setDemoLoaded(false);
     resetSubmitState();
-  }
-
-  function loadDemo() {
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setRole("ai_application");
-    setResumeFile(null);
-    setFileTouched(false);
-    setJd(demoJd);
-    setJdTouched(false);
-    setDemoLoaded(true);
-    setSubmitState({ kind: "idle" });
   }
 
   async function submitRealMaterials(event: FormEvent<HTMLFormElement>) {
@@ -138,10 +151,19 @@ export function MaterialForm() {
         throw new Error("解析服务暂时不可用，请稍后重试。");
       }
 
+      const candidateBrief = buildConfirmedCandidateBrief(parsedResponse.data);
+      if (!candidateBrief.success) {
+        throw new Error("简历信息未通过完整性校验，请重新提交材料。");
+      }
+
       try {
         sessionStorage.setItem(
           MATERIAL_PARSE_STORAGE_KEY,
           JSON.stringify(parsedResponse.data),
+        );
+        sessionStorage.setItem(
+          CANDIDATE_BRIEF_STORAGE_KEY,
+          JSON.stringify(candidateBrief.data),
         );
       } catch {
         throw new Error("浏览器无法保存解析结果，请检查隐私或存储设置后重试。");
@@ -149,9 +171,9 @@ export function MaterialForm() {
 
       setSubmitState({
         kind: "success",
-        message: "材料解析完成，正在进入事实确认页…",
+        message: "材料解析完成，正在进入面试…",
       });
-      router.push("/prepare/confirm?source=live");
+      router.push(`/interview/${appConfig.demoSessionId}?source=live`);
     } catch (error) {
       setSubmitState({
         kind: "error",
@@ -218,22 +240,13 @@ export function MaterialForm() {
               aria-invalid={fileTouched && Boolean(resumeError)}
               disabled={isLoading}
               onChange={selectFile}
-              ref={fileInputRef}
               type="file"
             />
             <span aria-hidden="true" className="upload-icon">
               PDF
             </span>
-            <strong>
-              {demoLoaded
-                ? "内置脱敏演示材料（未选择本地文件）"
-                : resumeFile?.name || "上传文本型简历 PDF"}
-            </strong>
-            <small id="resume-help">
-              {demoLoaded
-                ? "演示路径读取内置 fixture，不会上传文件"
-                : "最大 8 MB · 扫描件暂不支持"}
-            </small>
+            <strong>{resumeFile?.name || "上传文本型简历 PDF"}</strong>
+            <small id="resume-help">最大 8 MB · 扫描件暂不支持</small>
             {fileTouched && resumeError && (
               <span className="field-error" id="resume-error" role="alert">
                 {resumeError}
@@ -252,7 +265,6 @@ export function MaterialForm() {
               onChange={(event) => {
                 setJd(event.target.value);
                 setJdTouched(true);
-                setDemoLoaded(false);
                 resetSubmitState();
               }}
               placeholder="粘贴岗位职责、任职要求和加分项…"
@@ -270,13 +282,18 @@ export function MaterialForm() {
         </div>
       </section>
 
-      {demoLoaded && (
-        <p className="material-status" id="demo-material-status" role="status">
-          已加载脱敏演示内容。你可以进入原有 Demo 确认页；它不会调用真实解析接口。
-        </p>
-      )}
-
-      {submitState.kind !== "idle" && (
+      {isLoading ? (
+        <div
+          className="material-status is-loading"
+          id="material-submit-status"
+        >
+          <ElapsedWait
+            active
+            label="正在提取 PDF、分析简历并匹配目标 JD"
+            timeoutSeconds={60}
+          />
+        </div>
+      ) : submitState.kind !== "idle" ? (
         <p
           aria-live={submitState.kind === "error" ? "assertive" : "polite"}
           aria-atomic="true"
@@ -286,43 +303,26 @@ export function MaterialForm() {
         >
           {submitState.message}
         </p>
-      )}
+      ) : null}
 
-      {!demoLoaded && (
-        <p className="material-privacy" id="material-privacy">
-          提交真实材料会把 PDF 提取文本与 JD 发送给当前配置的模型服务处理。应用服务端不落盘保存；返回的结构化草稿与必要原文摘录只写入当前标签页的 sessionStorage，可在确认页清除。若使用第三方供应商，其处理区域、日志与留存以供应商条款和部署配置为准，本应用无法代其承诺零留存。请只提交你有权处理的材料，并优先脱敏。
-        </p>
-      )}
+      <p className="material-privacy" id="material-privacy">
+        简历仅用于生成本场问题。建议先隐去手机号、邮箱等个人信息。
+      </p>
 
-      <div className="form-actions">
+      <div className="form-actions" style={{ justifyContent: "flex-end" }}>
         <button
-          className="button button-secondary"
-          disabled={isLoading}
-          onClick={loadDemo}
-          type="button"
+          aria-describedby={
+            submitState.kind === "idle"
+              ? "material-privacy"
+              : "material-privacy material-submit-status"
+          }
+          className="button button-primary"
+          disabled={!canSubmit}
+          type="submit"
         >
-          加载脱敏演示材料
+          {isLoading ? "正在分析材料…" : "生成并开始面试"}
+          <span aria-hidden="true">→</span>
         </button>
-        {demoLoaded ? (
-          <Link className="button button-primary" href={`/prepare/confirm?role=${role}`}>
-            确认演示材料
-            <span aria-hidden="true">→</span>
-          </Link>
-        ) : (
-          <button
-            aria-describedby={
-              submitState.kind === "idle"
-                ? "material-privacy"
-                : "material-privacy material-submit-status"
-            }
-            className="button button-primary"
-            disabled={!canSubmit}
-            type="submit"
-          >
-            {isLoading ? "正在解析…" : "解析真实材料"}
-            <span aria-hidden="true">→</span>
-          </button>
-        )}
       </div>
     </form>
   );

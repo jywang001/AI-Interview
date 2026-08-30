@@ -1,0 +1,78 @@
+.wait {
+  width: 100%;
+  padding: 14px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: #29467a;
+  background: #f1f5ff;
+  border: 1px solid #dbe5ff;
+  border-radius: 12px;
+}
+
+.compact {
+  margin-top: 12px;
+  padding: 11px 13px;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: 2px solid #b8caff;
+  border-top-color: #3370ff;
+  border-radius: 999px;
+  animation: spin 800ms linear infinite;
+}
+
+.copy {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+.copy strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.copy small {
+  color: #66779b;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.track {
+  width: 100%;
+  height: 3px;
+  margin-top: 2px;
+  display: block;
+  overflow: hidden;
+  background: #dfe7f8;
+  border-radius: 999px;
+}
+
+.track > i {
+  height: 100%;
+  display: block;
+  background: linear-gradient(90deg, #3370ff, #00a870);
+  border-radius: inherit;
+  transition: width 600ms ease;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s;
+  }
+
+  .track > i {
+    transition: none;
+  }
+}
