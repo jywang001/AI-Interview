@@ -6,7 +6,7 @@
 2. `https://ai-interview.site/prepare`：真实材料入口。
 3. `https://ai-interview.site/interview/demo-ai-developer`：快速面试入口。
 
-演示材料使用仓库中的虚构文件：
+录制前运行 `python scripts/build_demo_resumes.py`，再使用本地生成的虚构材料（PDF 不提交仓库）：
 
 - `output/pdf/ai-application-resume-demo.pdf`
 - `fixtures/demo-materials/ai-application/jd.md`

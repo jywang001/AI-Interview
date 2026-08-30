@@ -9,7 +9,7 @@
 - [ ] 3 分钟以内 Demo 视频：本地文件或无需登录的分享链接。
 - [x] 公网产品：<https://ai-interview.site>
 - [x] 服务器已安装挑战说明指定的两把主办方 SSH 公钥；登录用户为 `ubuntu`。
-- [x] Product Memo：`output/pdf/AI-Interview-Product-Memo.pdf`
+- [x] Product Memo：仓库外邮件附件 `AI-Interview-Product-Memo.pdf`
 - [x] 公开 GitHub：<https://github.com/jywang001/AI-Interview>
 - [ ] 确认 GitHub 已包含最终 Memo 源稿、Docker 修复、README 与最新 commit history。
 

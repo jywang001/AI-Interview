@@ -36,7 +36,7 @@ These tools are intentionally outside the Node dependency graph. `poppler-utils`
 ## Assets and hosted services
 
 - `public/presenter-placeholder.svg` is an original project asset; it does not incorporate a third-party image, icon set or character design.
-- The two PDFs in `output/pdf/` reference the standard `STSong-Light` CID font mapping supplied by ReportLab and the PDF core font Helvetica. `pdffonts` reports both as non-embedded, so no local or proprietary font binary is redistributed in these artifacts.
+- Locally generated Demo PDFs use ReportLab's standard `STSong-Light` CID mapping and PDF core font Helvetica. Generated PDF binaries are ignored by Git and are not redistributed in this repository.
 - No stock media, external question bank or competitor asset is included in the initial scaffold.
 - Model and speech services are deployment choices, not redistributed software. Before a public deployment, record the selected provider, applicable terms, processing region and retention policy here or in a linked operations document.
 

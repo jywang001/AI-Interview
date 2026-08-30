@@ -72,7 +72,7 @@ curl -fsS http://127.0.0.1:3000/api/health
 
 材料接口内置单进程 Demo 保护：带 `Content-Length` 的请求在约 9 MB 处提前拒绝，同时限制为最多 2 个并发分析和每分钟 10 个已接受请求。它不能替代网关控制；公网部署仍须在 Caddy、Nginx 或云负载均衡设置 9 MB 总请求体上限、限速、并发上限和模型费用告警，尤其要拦截没有 `Content-Length` 的分块超大请求。
 
-公开演示应优先使用 [虚构演示材料](fixtures/demo-materials/README.md)。两份演示 PDF 可用开发期脚本重新生成；ReportLab 只用于生成 fixture，不是 Node 应用或生产容器的运行时依赖：
+公开演示应优先使用 [虚构演示材料](fixtures/demo-materials/README.md)。仓库不提交 PDF 二进制；需要上传测试时可在本地运行脚本生成两份演示 PDF。ReportLab 只用于生成 fixture，不是 Node 应用或生产容器的运行时依赖：
 
 ```sh
 python3 -m venv .venv
